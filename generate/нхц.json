@@ -1,0 +1,606 @@
+{
+	"items": [
+		{
+			"address": {
+				"building_id": "15763234351131151",
+				"components": [
+					{
+						"number": "25",
+						"street": "Абдраимова Ишембая улица",
+						"street_id": "15763337430171675",
+						"type": "street_number"
+					}
+				],
+				"postcode": "720044"
+			},
+			"address_name": "Абдраимова Ишембая улица, 25",
+			"adm_div": [
+				{
+					"id": "23",
+					"name": "Кыргызстан",
+					"type": "country"
+				},
+				{
+					"id": "70030076149164641",
+					"name": "Бишкек",
+					"type": "region"
+				},
+				{
+					"city_alias": "bishkek",
+					"flags": {
+						"is_default": true,
+						"is_region_center": true
+					},
+					"id": "15763221466054725",
+					"is_default": true,
+					"name": "Бишкек",
+					"type": "city"
+				},
+				{
+					"id": "15763208581152775",
+					"name": "Ленинский район",
+					"type": "district"
+				}
+			],
+			"building_name": "Национальный хирургический центр им. М.М. Мамакеева",
+			"city_alias": "bishkek",
+			"context": {},
+			"dates": {
+				"updated_at": "2026-02-25T12:09:42Z"
+			},
+			"external_content": [
+				{
+					"count": 19,
+					"main_photo_url": "https://i4.photo.2gis.com/main/branch/112/70000001019327272/common",
+					"subtype": "common",
+					"type": "photo_album"
+				}
+			],
+			"flags": {
+				"photos": true
+			},
+			"floors": {
+				"ground_count": 4
+			},
+			"full_name": "Бишкек, Национальный хирургический центр им. М.М. Мамакеева",
+			"geometry": {
+				"centroid": "POINT(74.582245 42.851758)",
+				"selection": "POINT(74.582245 42.851758)"
+			},
+			"group": [
+				{
+					"geometry": {
+						"centroid": "POINT(74.582245 42.851758)",
+						"hover": "POLYGON((74.582029 42.852346,74.582102 42.852344,74.582088 42.852011,74.582186 42.852008,74.582291 42.85207,74.582428 42.851944,74.582324 42.851883,74.582325 42.851834,74.582704 42.851825,74.582702 42.851771,74.582775 42.851769,74.582797 42.852282,74.582871 42.85228,74.582873 42.852343,74.582934 42.852342,74.582932 42.852279,74.583005 42.852277,74.582979 42.851665,74.582771 42.85167,74.582769 42.851625,74.582806 42.851624,74.582798 42.851453,74.582651 42.851457,74.582658 42.851628,74.582695 42.851626,74.582697 42.851672,74.581865 42.851692,74.581872 42.851845,74.581946 42.851843,74.581948 42.851897,74.581875 42.851899,74.581895 42.852349,74.581968 42.852347,74.58197 42.85241,74.582032 42.852409,74.582029 42.852346),(74.582007 42.851841,74.582264 42.851835,74.582264 42.85185,74.58215 42.851955,74.582085 42.851957,74.582083 42.851894,74.582009 42.851895,74.582007 42.851841))",
+						"selection": "POINT(74.582245 42.851758)"
+					},
+					"id": "15763234351131151",
+					"type": "building"
+				},
+				{
+					"geometry": {
+						"centroid": "POINT(74.582314 42.851859)",
+						"hover": "POLYGON((74.582959 42.851218,74.582979 42.851665,74.583034 42.851664,74.583076 42.852448,74.581623 42.852482,74.581586 42.851261,74.582959 42.851218))",
+						"selection": "POLYGON((74.582959 42.851218,74.582979 42.851665,74.583034 42.851664,74.583076 42.852448,74.581623 42.852482,74.581586 42.851261,74.582959 42.851218))"
+					},
+					"id": "70030076890795432",
+					"subtype": "place",
+					"type": "adm_div"
+				}
+			],
+			"has_ads_model": false,
+			"has_apartments_info": false,
+			"has_discount": false,
+			"has_goods": false,
+			"has_pinned_goods": false,
+			"has_realty": false,
+			"id": "70000001019327272_oD4dc51c17d0dBCI38061H3J2HI26f9y7x5504839-2465J281J2J73278B-d8dd33G4G2A8677779637493rff8i3bdB9A828836AJCH0000112HHI2JHJIHG2I93",
+			"is_promoted": false,
+			"links": {
+				"branches": {
+					"count": 7
+				},
+				"database_entrances": [
+					{
+						"geometry": {
+							"normals": ["LINESTRING(74.53984 41.852592,74.582741 42.851671)"],
+							"points": ["POINT(74.582740999221983 42.851670852752868)"],
+							"vectors": ["LINESTRING(74.582737 42.851581,74.582741 42.851671)"]
+						},
+						"id": "70030076711781277",
+						"is_primary": true,
+						"is_visible_on_map": true
+					}
+				],
+				"entrances": [
+					{
+						"geometry": {
+							"normals": ["LINESTRING(74.53984 41.852592,74.582741 42.851671)"],
+							"points": ["POINT(74.582740999221983 42.851670852752868)"],
+							"vectors": ["LINESTRING(74.582737 42.851581,74.582741 42.851671)"]
+						},
+						"id": "70030076711781277",
+						"is_primary": true,
+						"is_visible_on_map": true
+					}
+				],
+				"landmarks": [
+					{
+						"azimuth": 168,
+						"distance": 220,
+						"id": "15763234351131232",
+						"name": "Национальный хирургический центр",
+						"type": "building"
+					},
+					{
+						"azimuth": 208,
+						"distance": 50,
+						"id": "70030076890795432",
+						"name": "Национальный хирургический центр им. М.М. Мамакеева",
+						"subtype": "place",
+						"type": "adm_div"
+					},
+					{
+						"distance": 120,
+						"id": "70030076161237869",
+						"name": "Абдраимова Ишембая и Гагарина",
+						"type": "crossroad"
+					}
+				],
+				"nearest_parking": [
+					{
+						"id": "70030076130198405"
+					},
+					{
+						"id": "70030076130198247"
+					},
+					{
+						"id": "70030076526682611"
+					},
+					{
+						"id": "70030076188467228"
+					},
+					{
+						"id": "70030076711781316"
+					},
+					{
+						"id": "70030076172132132"
+					},
+					{
+						"id": "70030076188467227"
+					},
+					{
+						"id": "70030076845909433"
+					}
+				],
+				"nearest_stations": [
+					{
+						"distance": 320,
+						"id": "15763384674812506",
+						"name": "Юдахина",
+						"route_types": ["bus", "shuttle_bus"]
+					}
+				]
+			},
+			"locale": "ru_KG",
+			"name": "Национальный хирургический центр им. М.М. Мамакеева, Министерство здравоохранения КР",
+			"name_ex": {
+				"extension": "Министерство здравоохранения КР",
+				"primary": "Национальный хирургический центр им. М.М. Мамакеева",
+				"short_name": "Хирургический центр Мамакеева"
+			},
+			"org": {
+				"branch_count": 2,
+				"id": "70000001019327271",
+				"name": "Национальный хирургический центр им. М.М. Мамакеева, Министерство здравоохранения КР",
+				"primary": "Национальный хирургический центр им. М.М. Мамакеева"
+			},
+			"poi_category": "hospital",
+			"point": {
+				"lat": 42.851758,
+				"lon": 74.582245
+			},
+			"purpose_code": 19,
+			"purpose_name": "Медицинское учреждение",
+			"region_id": "112",
+			"reviews": {
+				"general_rating": 2.3,
+				"general_review_count": 138,
+				"general_review_count_with_stars": 246,
+				"is_reviewable": false,
+				"is_reviewable_on_flamp": true,
+				"items": [
+					{
+						"is_reviewable": true,
+						"tag": "2gis_reviews"
+					}
+				],
+				"org_rating": 2.8,
+				"org_review_count": 144,
+				"org_review_count_with_stars": 259
+			},
+			"rubrics": [
+				{
+					"alias": "bolnicy",
+					"id": "201",
+					"kind": "primary",
+					"name": "Больницы",
+					"parent_id": "5",
+					"short_id": 201
+				}
+			],
+			"schedule": {
+				"Fri": {
+					"working_hours": [
+						{
+							"from": "00:00",
+							"to": "24:00"
+						}
+					]
+				},
+				"Mon": {
+					"working_hours": [
+						{
+							"from": "00:00",
+							"to": "24:00"
+						}
+					]
+				},
+				"Sat": {
+					"working_hours": [
+						{
+							"from": "00:00",
+							"to": "24:00"
+						}
+					]
+				},
+				"Sun": {
+					"working_hours": [
+						{
+							"from": "00:00",
+							"to": "24:00"
+						}
+					]
+				},
+				"Thu": {
+					"working_hours": [
+						{
+							"from": "00:00",
+							"to": "24:00"
+						}
+					]
+				},
+				"Tue": {
+					"working_hours": [
+						{
+							"from": "00:00",
+							"to": "24:00"
+						}
+					]
+				},
+				"Wed": {
+					"working_hours": [
+						{
+							"from": "00:00",
+							"to": "24:00"
+						}
+					]
+				},
+				"comment": "неприемные дни: пн, пт",
+				"is_24x7": true
+			},
+			"search_attributes": {
+				"detection_type": 70,
+				"external_source": 0,
+				"relevance": 0.2047715038061142
+			},
+			"segment_id": "0",
+			"stat": {
+				"adst": 1608260400,
+				"is_advertised": false,
+				"match_type": 1,
+				"source_type": 1
+			},
+			"statistics": {
+				"area": 158215573.5462
+			},
+			"timezone_offset": 360,
+			"type": "branch"
+		},
+		{
+			"address": {
+				"building_id": "15763234351131168",
+				"components": [
+					{
+						"number": "25/2",
+						"street": "Абдраимова Ишембая улица",
+						"street_id": "15763337430171675",
+						"type": "street_number"
+					}
+				],
+				"postcode": "720044"
+			},
+			"address_comment": "Г корпус",
+			"address_name": "Абдраимова Ишембая улица, 25/2",
+			"adm_div": [
+				{
+					"id": "23",
+					"name": "Кыргызстан",
+					"type": "country"
+				},
+				{
+					"id": "70030076149164641",
+					"name": "Бишкек",
+					"type": "region"
+				},
+				{
+					"city_alias": "bishkek",
+					"flags": {
+						"is_default": true,
+						"is_region_center": true
+					},
+					"id": "15763221466054725",
+					"is_default": true,
+					"name": "Бишкек",
+					"type": "city"
+				},
+				{
+					"id": "15763208581152775",
+					"name": "Ленинский район",
+					"type": "district"
+				}
+			],
+			"city_alias": "bishkek",
+			"context": {},
+			"dates": {
+				"updated_at": "2026-01-20T13:15:46Z"
+			},
+			"external_content": [
+				{
+					"count": 3,
+					"main_photo_url": "https://i0.photo.2gis.com/main/branch/112/70000001021069933/common",
+					"subtype": "common",
+					"type": "photo_album"
+				}
+			],
+			"flags": {
+				"photos": true
+			},
+			"floors": {
+				"ground_count": 3
+			},
+			"full_name": "Бишкек, Абдраимова Ишембая улица, 25/2",
+			"geometry": {
+				"centroid": "POINT(74.582445 42.852323)",
+				"selection": "POINT(74.582445 42.852323)"
+			},
+			"group": [
+				{
+					"geometry": {
+						"centroid": "POINT(74.582445 42.852323)",
+						"hover": "POLYGON((74.582167 42.85242,74.582161 42.852285,74.582222 42.852283,74.58222 42.852238,74.582722 42.852226,74.58273 42.852406,74.582167 42.85242))",
+						"selection": "POINT(74.582445 42.852323)"
+					},
+					"id": "15763234351131168",
+					"type": "building"
+				}
+			],
+			"has_ads_model": false,
+			"has_apartments_info": false,
+			"has_discount": false,
+			"has_goods": false,
+			"has_pinned_goods": false,
+			"has_realty": false,
+			"id": "70000001021069933_oD4dc51c17d0dBCI38061H4J2HI26f9y7x5504839-2465J281J2J73278B-d8dd33G4G2A8677771379B54rff8i3bdB9A828836AJCH0000113HHI2JHJIHG2I6g",
+			"is_promoted": false,
+			"links": {
+				"database_entrances": [
+					{
+						"geometry": {
+							"normals": ["LINESTRING(74.627198 43.851409,74.582338 42.852415)"],
+							"points": ["POINT(74.582338284480116 42.852415480733882)"],
+							"vectors": ["LINESTRING(74.582342 42.852506,74.582338 42.852415)"]
+						},
+						"id": "15763642372857279",
+						"is_primary": false,
+						"is_visible_on_map": true
+					}
+				],
+				"entrances": [
+					{
+						"geometry": {
+							"normals": ["LINESTRING(74.627198 43.851409,74.582338 42.852415)"],
+							"points": ["POINT(74.582338284480116 42.852415480733882)"],
+							"vectors": ["LINESTRING(74.582342 42.852506,74.582338 42.852415)"]
+						},
+						"id": "15763642372857279",
+						"is_primary": false,
+						"is_visible_on_map": true
+					}
+				],
+				"landmarks": [
+					{
+						"azimuth": 145,
+						"distance": 210,
+						"id": "15763234351131232",
+						"name": "Национальный хирургический центр",
+						"type": "building"
+					},
+					{
+						"azimuth": 13,
+						"distance": 280,
+						"id": "70030076890795432",
+						"name": "Национальный хирургический центр им. М.М. Мамакеева",
+						"subtype": "place",
+						"type": "adm_div"
+					},
+					{
+						"distance": 250,
+						"id": "70030076161237869",
+						"name": "Абдраимова Ишембая и Гагарина",
+						"type": "crossroad"
+					}
+				],
+				"nearest_parking": [
+					{
+						"id": "70030076711781316"
+					},
+					{
+						"id": "70030076845909433"
+					},
+					{
+						"id": "70030076526682611"
+					},
+					{
+						"id": "70030076188467228"
+					},
+					{
+						"id": "70030076188467227"
+					}
+				],
+				"nearest_stations": [
+					{
+						"distance": 340,
+						"id": "15763384674812506",
+						"name": "Юдахина",
+						"route_types": ["bus", "shuttle_bus"]
+					}
+				]
+			},
+			"locale": "ru_KG",
+			"name": "Национальный хирургический центр им. М.М. Мамакеева, Министерство здравоохранения КР",
+			"name_ex": {
+				"extension": "Министерство здравоохранения КР",
+				"primary": "Национальный хирургический центр им. М.М. Мамакеева"
+			},
+			"org": {
+				"branch_count": 2,
+				"id": "70000001019327271",
+				"name": "Национальный хирургический центр им. М.М. Мамакеева, Министерство здравоохранения КР",
+				"primary": "Национальный хирургический центр им. М.М. Мамакеева"
+			},
+			"poi_category": "hospital",
+			"point": {
+				"lat": 42.852323,
+				"lon": 74.582445
+			},
+			"purpose_code": 19,
+			"purpose_name": "Медицинское учреждение",
+			"region_id": "112",
+			"reviews": {
+				"general_rating": 3.3,
+				"general_review_count": 15,
+				"general_review_count_with_stars": 22,
+				"is_reviewable": false,
+				"is_reviewable_on_flamp": true,
+				"items": [
+					{
+						"is_reviewable": true,
+						"tag": "2gis_reviews"
+					}
+				],
+				"org_rating": 2.8,
+				"org_review_count": 144,
+				"org_review_count_with_stars": 259
+			},
+			"rubrics": [
+				{
+					"alias": "bolnicy",
+					"id": "201",
+					"kind": "primary",
+					"name": "Больницы",
+					"parent_id": "5",
+					"short_id": 201
+				}
+			],
+			"schedule": {
+				"Fri": {
+					"working_hours": [
+						{
+							"from": "08:00",
+							"to": "12:00"
+						},
+						{
+							"from": "13:00",
+							"to": "17:00"
+						}
+					]
+				},
+				"Mon": {
+					"working_hours": [
+						{
+							"from": "08:00",
+							"to": "12:00"
+						},
+						{
+							"from": "13:00",
+							"to": "17:00"
+						}
+					]
+				},
+				"Sat": {
+					"working_hours": [
+						{
+							"from": "08:00",
+							"to": "12:00"
+						},
+						{
+							"from": "13:00",
+							"to": "17:00"
+						}
+					]
+				},
+				"Thu": {
+					"working_hours": [
+						{
+							"from": "08:00",
+							"to": "12:00"
+						},
+						{
+							"from": "13:00",
+							"to": "17:00"
+						}
+					]
+				},
+				"Tue": {
+					"working_hours": [
+						{
+							"from": "08:00",
+							"to": "12:00"
+						},
+						{
+							"from": "13:00",
+							"to": "17:00"
+						}
+					]
+				},
+				"Wed": {
+					"working_hours": [
+						{
+							"from": "08:00",
+							"to": "12:00"
+						},
+						{
+							"from": "13:00",
+							"to": "17:00"
+						}
+					]
+				}
+			},
+			"search_attributes": {
+				"detection_type": 70,
+				"relevance": 0.02328174188733101,
+				"external_source": 0
+			},
+			"segment_id": "0",
+			"stat": {
+				"adst": 1608260400,
+				"is_advertised": false,
+				"match_type": 1,
+				"source_type": 1
+			},
+			"timezone_offset": 360,
+			"type": "branch"
+		}
+	]
+}
