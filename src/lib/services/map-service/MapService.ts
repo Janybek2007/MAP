@@ -1,4 +1,5 @@
 import { mapStore } from '../../store/mapStore';
+import { fetchWithToken } from '../../utils/dataFetch';
 import type {
 	ActiveDistrict,
 	CityItem,
@@ -286,7 +287,7 @@ export class MapService {
 		const districtMeta = state.districts[districtId];
 		if (!districtMeta?.hid) return [];
 
-		const promise = fetch(`${this.apiBase}/data/districts/${districtMeta.hid}/coords`)
+		const promise = fetchWithToken(this.apiBase, `/data/districts/${districtMeta.hid}/coords`)
 			.then((res) => (res.ok ? res.json() : []))
 			.then((raw) => normalizeRings(raw))
 			.catch(() => []);

@@ -50,10 +50,16 @@ function childKey(category: string, child: string) {
 	return `${category}:${child}`;
 }
 
-function computeParentActive(state: StoreState, category: string, childrenMap: Record<string, string[]>) {
+function computeParentActive(
+	state: StoreState,
+	category: string,
+	childrenMap: Record<string, string[]>
+) {
 	const children = childrenMap[category] || [];
 	if (!children.length) return false;
-	const enabledCount = children.filter((child) => state.childActive[childKey(category, child)] !== false).length;
+	const enabledCount = children.filter(
+		(child) => state.childActive[childKey(category, child)] !== false
+	).length;
 	return enabledCount > 0;
 }
 
@@ -173,7 +179,9 @@ export const mapStore = {
 		update((state) => {
 			const childrenMap = getChildrenByCategory(state.locations);
 			const children = childrenMap[category] || [];
-			const enabledCount = children.filter((child) => state.childActive[childKey(category, child)] !== false).length;
+			const enabledCount = children.filter(
+				(child) => state.childActive[childKey(category, child)] !== false
+			).length;
 			const nextValue = enabledCount !== children.length;
 			const nextChildActive = { ...state.childActive };
 			children.forEach((child) => {

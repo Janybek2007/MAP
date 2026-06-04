@@ -82,7 +82,9 @@ export function computeMarkerVisibility(params: {
 			}
 
 			const categoryOn = state.categoryActive[item.category] !== false;
-			const childOn = item.child_category ? state.childActive[childKey(item.category, item.child_category)] !== false : true;
+			const childOn = item.child_category
+				? state.childActive[childKey(item.category, item.child_category)] !== false
+				: true;
 
 			if (geoOn && categoryOn && childOn) {
 				if (!params.map.hasLayer(item.marker)) item.marker.addTo(params.map);

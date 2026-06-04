@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Check } from 'lucide-svelte';
 	import { mapStore } from '../../../store/mapStore';
 	import { districtGroups, filteredDistricts } from '../helpers';
 
@@ -45,21 +46,14 @@
 					)}
 					<button
 						type="button"
-						class="district-btn district-btn-nested {idx >= 0 && isDistrictActive(idx) ? 'active' : ''}"
+						class="district-btn district-btn-nested {idx >= 0 && isDistrictActive(idx)
+							? 'active'
+							: ''}"
 						style="--d-color:#6366f1"
 						onclick={() => idx >= 0 && onToggleDistrict(idx)}
 					>
 						<span class="district-checkbox">
-							<svg viewBox="0 0 10 10" class="district-checkbox-tick">
-								<polyline
-									points="1.5,5 4,7.5 8.5,2"
-									stroke="#fff"
-									stroke-width="1.8"
-									fill="none"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								></polyline>
-							</svg>
+							<Check class="district-checkbox-tick" size={10} strokeWidth={2.6} />
 						</span>
 						<span>{String(district.title || '').split(',')[0]}</span>
 					</button>
@@ -81,16 +75,7 @@
 						onclick={() => idx >= 0 && onToggleDistrict(idx)}
 					>
 						<span class="district-checkbox">
-							<svg viewBox="0 0 10 10" class="district-checkbox-tick">
-								<polyline
-									points="1.5,5 4,7.5 8.5,2"
-									stroke="#fff"
-									stroke-width="1.8"
-									fill="none"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								></polyline>
-							</svg>
+							<Check class="district-checkbox-tick" size={10} strokeWidth={2.6} />
 						</span>
 						<span>{String(district.title || '').split(',')[0]}</span>
 					</button>

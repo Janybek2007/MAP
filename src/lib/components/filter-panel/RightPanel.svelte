@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SlidersHorizontal } from 'lucide-svelte';
 	import { mapStore } from '../../store/mapStore';
 	import Categories from './right/Categories.svelte';
 	import Districts from './right/Districts.svelte';
@@ -13,14 +14,7 @@
 		aria-label="Открыть фильтры"
 		onclick={() => mapStore.setPanelOpen(true)}
 	>
-		<svg width="16" height="16" viewBox="0 0 14 14" fill="none">
-			<path
-				d="M1 2.5h12M3 7h8M5.5 11.5h3"
-				stroke="currentColor"
-				stroke-width="1.7"
-				stroke-linecap="round"
-			></path>
-		</svg>
+		<SlidersHorizontal size={16} strokeWidth={2.2} />
 	</button>
 {:else}
 	<div class="filter-panel open shown">
@@ -32,14 +26,7 @@
 				aria-label="Закрыть фильтры"
 				onclick={() => mapStore.setPanelOpen(false)}
 			>
-				<svg width="16" height="16" viewBox="0 0 14 14" fill="none">
-					<path
-						d="M1 2.5h12M3 7h8M5.5 11.5h3"
-						stroke="currentColor"
-						stroke-width="1.7"
-						stroke-linecap="round"
-					></path>
-				</svg>
+				<SlidersHorizontal size={16} strokeWidth={2.2} />
 			</button>
 		</div>
 

@@ -286,6 +286,7 @@ body {
 	display: block;
 	width: 11px;
 	height: 11px;
+	color: #fff;
 }
 .category-item:not(.active) .category-checkbox-tick {
 	opacity: 0;
@@ -394,6 +395,7 @@ body {
 	display: none;
 	width: 11px;
 	height: 11px;
+	color: #fff;
 }
 .district-btn.active .district-checkbox-tick {
 	display: block;

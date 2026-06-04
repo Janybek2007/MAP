@@ -1,7 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
 	plugins: [sveltekit()],
 	resolve: {
 		tsconfigPaths: true
@@ -12,7 +12,24 @@ export default defineConfig({
 	},
 	server: {
 		port: 4500,
-		host: true
+		host: true,
+		proxy:
+			command === 'serve'
+				? {
+						'/api': {
+							target: 'http://localhost:8080',
+							changeOrigin: true
+						},
+						'/data': {
+							target: 'http://localhost:8080',
+							changeOrigin: true
+						},
+						'/health': {
+							target: 'http://localhost:8080',
+							changeOrigin: true
+						}
+					}
+				: undefined
 	},
 	build: {
 		sourcemap: false,
@@ -46,4 +63,4 @@ export default defineConfig({
 			}
 		}
 	}
-});
+}));

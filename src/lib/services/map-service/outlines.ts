@@ -1,4 +1,5 @@
 import type { CityItem, RegionItem } from '../../types/map';
+import { fetchWithToken } from '../../utils/dataFetch';
 import { normalizeRings } from './coords';
 
 export async function ensureRegionLayer(params: {
@@ -18,7 +19,7 @@ export async function ensureRegionLayer(params: {
 	if (existingPromise) {
 		rings = await existingPromise;
 	} else {
-		const promise = fetch(`${params.apiBase}/data/regions/${params.hid}/coords`)
+		const promise = fetchWithToken(params.apiBase, `/data/regions/${params.hid}/coords`)
 			.then((res) => (res.ok ? res.json() : []))
 			.then((raw) => normalizeRings(raw))
 			.catch(() => []);
@@ -61,7 +62,7 @@ export async function ensureCityLayer(params: {
 	if (existingPromise) {
 		rings = await existingPromise;
 	} else {
-		const promise = fetch(`${params.apiBase}/data/cities/${params.hid}/coords`)
+		const promise = fetchWithToken(params.apiBase, `/data/cities/${params.hid}/coords`)
 			.then((res) => (res.ok ? res.json() : []))
 			.then((raw) => normalizeRings(raw))
 			.catch(() => []);

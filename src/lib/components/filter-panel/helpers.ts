@@ -46,7 +46,9 @@ export function districtGroups(state: StoreState) {
 				const [regionHid, cityHid] = key.split('|');
 				const region = state.regions.find((item) => item.hid === regionHid);
 				const city = cityHid !== 'none' ? state.cities.find((item) => item.hid === cityHid) : null;
-				const title = city ? `${region?.title || 'Область'} · ${city.title}` : (region?.title || 'Область');
+				const title = city
+					? `${region?.title || 'Область'} · ${city.title}`
+					: region?.title || 'Область';
 				return { title, districts };
 			})
 			.sort((a, b) => a.title.localeCompare(b.title, 'ru'));

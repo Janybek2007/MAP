@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Check, MapPinned } from 'lucide-svelte';
 	import { mapStore } from '../../store/mapStore';
 	import { filteredCities, isCityChecked, isRegionChecked } from './helpers';
 
@@ -13,14 +14,7 @@
 			aria-label="Открыть или закрыть локацию"
 			onclick={() => (open = !open)}
 		>
-			<svg width="16" height="16" viewBox="0 0 14 14" fill="none">
-				<path
-					d="M1 2.5h12M3 7h8M5.5 11.5h3"
-					stroke="currentColor"
-					stroke-width="1.7"
-					stroke-linecap="round"
-				></path>
-			</svg>
+			<MapPinned size={16} strokeWidth={2.1} />
 		</button>
 		<span class="filter-title">Локация</span>
 	</div>
@@ -36,16 +30,7 @@
 						onclick={() => region.hid && mapStore.toggleRegionHid(region.hid)}
 					>
 						<span class="district-checkbox">
-							<svg viewBox="0 0 10 10" class="district-checkbox-tick">
-								<polyline
-									points="1.5,5 4,7.5 8.5,2"
-									stroke="#fff"
-									stroke-width="1.8"
-									fill="none"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								></polyline>
-							</svg>
+							<Check class="district-checkbox-tick" size={10} strokeWidth={2.6} />
 						</span>
 						<span>{region.title}</span>
 					</button>
@@ -62,16 +47,7 @@
 						onclick={() => city.hid && mapStore.toggleCityHid(city.hid)}
 					>
 						<span class="district-checkbox">
-							<svg viewBox="0 0 10 10" class="district-checkbox-tick">
-								<polyline
-									points="1.5,5 4,7.5 8.5,2"
-									stroke="#fff"
-									stroke-width="1.8"
-									fill="none"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								></polyline>
-							</svg>
+							<Check class="district-checkbox-tick" size={10} strokeWidth={2.6} />
 						</span>
 						<span>{city.title}</span>
 					</button>

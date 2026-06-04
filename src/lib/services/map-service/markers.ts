@@ -19,17 +19,18 @@ export function placeMarkers(params: {
 }): MarkerBuckets {
 	const { DG, map, tooltips, locations } = params;
 	const buckets: MarkerBuckets = {};
-	const BONETSKY_SALES = 128;
 
 	function showPinTooltip(loc: LocationItem) {
-	const { pinTooltipEl, pinTooltipTitleEl, pinTooltipCatEl } = tooltips;
-	const category = loc.category || loc.type || '';
-	const color = CATEGORY_COLORS[category] || '#888';
-	const categoryLabel = loc.category_display || CATEGORY_LABELS[category] || category || 'Категория';
-	const childLabel =
-		category === 'bonetsky'
-			? loc.type_display || loc.type || ''
-			: loc.child_category_display || loc.child_category || '';
+		const { pinTooltipEl, pinTooltipTitleEl, pinTooltipCatEl } = tooltips;
+
+		const category = loc.category || loc.type || '';
+		const color = CATEGORY_COLORS[category as CategoryKey] || '#888';
+		const categoryLabel =
+			loc.category_display || CATEGORY_LABELS[category as CategoryKey] || category || 'Категория';
+		const childLabel =
+			category === 'bonetsky'
+				? loc.type_display || loc.type || ''
+				: loc.child_category_display || loc.child_category || '';
 
 		pinTooltipEl.style.borderColor = color;
 		pinTooltipTitleEl.textContent = loc.name || loc.address || categoryLabel;
@@ -41,16 +42,17 @@ export function placeMarkers(params: {
 		if (category === 'bonetsky') {
 			rows.push(`<span class="tooltip-divider"></span>`);
 			if (loc.manager)
-				rows.push(`<span class="tooltip-manager">Менеджер: ${params.escapeHtml(loc.manager)}</span>`);
-			rows.push(`<span class="tooltip-sales">Продажи: ${params.escapeHtml(BONETSKY_SALES)}</span>`);
+				rows.push(
+					`<span class="tooltip-manager">Менеджер: ${params.escapeHtml(loc.manager)}</span>`
+				);
 		}
 		pinTooltipCatEl.innerHTML = rows.join('');
 
 		params.showTooltipNode(pinTooltipEl as HTMLElement & { _removeTimer?: number | null });
 		const point = map.latLngToContainerPoint([loc.lat, loc.lng]);
-		const tooltipH = pinTooltipEl.offsetHeight;
+		const h = pinTooltipEl.offsetHeight;
 		pinTooltipEl.style.left = `${point.x}px`;
-		pinTooltipEl.style.top = `${point.y - 24 - tooltipH - 6}px`;
+		pinTooltipEl.style.top = `${point.y - 30 - h}px`;
 	}
 
 	locations.forEach((loc) => {
@@ -90,9 +92,7 @@ export function placeMarkers(params: {
 			child_category: category === 'bonetsky' ? loc.type : loc.child_category,
 			category_display: loc.category_display,
 			child_category_display:
-				category === 'bonetsky'
-					? loc.type_display || loc.type
-					: loc.child_category_display,
+				category === 'bonetsky' ? loc.type_display || loc.type : loc.child_category_display,
 			manager: loc.manager
 		} satisfies MarkerEntry);
 	});

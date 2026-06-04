@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"map/api"
 	"net"
 	"net/http"
 	"os"
@@ -13,16 +14,19 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
 )
 
 const (
 	dataDir            = "data"
 	serverMarkerHeader = "X-Map-Server"
-	defaultPort        = 27436
+	defaultProdPort    = 27436
+	defaultDevPort     = 8080
 )
 
 var runMode = "prod"
@@ -30,7 +34,7 @@ var currentServer *http.Server
 
 func main() {
 	mode := "prod"
-	port := defaultPort
+	port := defaultProdPort
 	for _, arg := range os.Args[1:] {
 		if strings.HasPrefix(arg, "-mode=") {
 			mode = strings.TrimPrefix(arg, "-mode=")
@@ -43,16 +47,27 @@ func main() {
 	if mode != "dev" && mode != "prod" {
 		log.Fatalf("invalid -mode=%s (use dev|prod)", mode)
 	}
+	if port == defaultProdPort && mode == "dev" {
+		port = defaultDevPort
+	}
 	runMode = mode
+	loadEnvFiles(mode)
 
 	mux := http.NewServeMux()
+	apiRouter := chi.NewRouter()
 
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/shutdown", shutdownHandler)
-	mux.HandleFunc("/data/", dataFileHandler)
-	mux.HandleFunc("/data", dataIndexHandler)
+	apiKey := strings.TrimSpace(os.Getenv("API_KEY"))
+	if apiKey == "" {
+		log.Fatal("API_KEY is required")
+	}
+	locAPI := api.RegisterRoute(apiRouter, dataDir, apiKey, readDataFile, mode == "prod")
+	mux.Handle("/api/", apiRouter)
+	dataRouter := locAPI.NewDataRouter()
+	mux.Handle("/data/", dataRouter)
 	if mode == "prod" {
-		if err := registerStaticRoutes(mux); err != nil {
+		if err := registerStaticRoutes(mux, locAPI); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -169,8 +184,9 @@ func openBrowser(url string) error {
 func withCommonHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Resource-Token, X-Token")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Next-Token, X-Next-Token-Expires-At")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
@@ -187,183 +203,7 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
-func dataIndexHandler(w http.ResponseWriter, _ *http.Request) {
-	var entries []fs.DirEntry
-	if runMode == "dev" {
-		diskEntries, err := os.ReadDir(dataDir)
-		if err != nil {
-			http.Error(w, "cannot read data dir", http.StatusInternalServerError)
-			return
-		}
-		entries = make([]fs.DirEntry, 0, len(diskEntries))
-		for _, entry := range diskEntries {
-			entries = append(entries, entry)
-		}
-	} else {
-		dataFS, err := fs.Sub(appFS, dataDir)
-		if err != nil {
-			http.Error(w, "cannot access embedded data dir", http.StatusInternalServerError)
-			return
-		}
-		embeddedEntries, err := fs.ReadDir(dataFS, ".")
-		if err != nil {
-			http.Error(w, "cannot read data dir", http.StatusInternalServerError)
-			return
-		}
-		entries = embeddedEntries
-	}
-
-	files := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if strings.HasSuffix(strings.ToLower(name), ".json") {
-			files = append(files, name)
-		}
-	}
-	sort.Strings(files)
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"files": files,
-	})
-}
-
-func dataFileHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	urlPath := strings.TrimPrefix(r.URL.Path, "/data/")
-	urlPath = strings.Trim(urlPath, "/")
-	if urlPath == "" {
-		http.NotFound(w, r)
-		return
-	}
-
-	parts := strings.Split(urlPath, "/")
-	if len(parts) == 3 && parts[2] == "coords" {
-		handleCoordsByHID(w, parts[0], parts[1])
-		return
-	}
-
-	name := filepath.Base(parts[0])
-	if name == "." || name == "" {
-		http.NotFound(w, r)
-		return
-	}
-	if !strings.HasSuffix(strings.ToLower(name), ".json") {
-		http.Error(w, "only .json files are allowed", http.StatusBadRequest)
-		return
-	}
-
-	var payload []byte
-	var err error
-	if runMode == "dev" {
-		fullPath := filepath.Join(dataDir, name)
-		payload, err = os.ReadFile(fullPath)
-	} else {
-		payload, err = appFS.ReadFile(path.Join(dataDir, name))
-	}
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	var data any
-	if err := json.Unmarshal(payload, &data); err != nil {
-		http.Error(w, "invalid json in source file", http.StatusInternalServerError)
-		return
-	}
-
-	if shouldStripCoords(name) {
-		data = stripCoords(data)
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(data)
-}
-
-func shouldStripCoords(name string) bool {
-	lower := strings.ToLower(name)
-	return lower == "districts.json" || lower == "cities.json" || lower == "regions.json"
-}
-
-func stripCoords(data any) any {
-	switch typed := data.(type) {
-	case []any:
-		out := make([]any, 0, len(typed))
-		for _, item := range typed {
-			if obj, ok := item.(map[string]any); ok {
-				copyObj := map[string]any{}
-				for key, val := range obj {
-					if key == "coords" {
-						continue
-					}
-					copyObj[key] = val
-				}
-				out = append(out, copyObj)
-			} else {
-				out = append(out, item)
-			}
-		}
-		return out
-	default:
-		return data
-	}
-}
-
-func handleCoordsByHID(w http.ResponseWriter, collection string, hid string) {
-	if hid == "" {
-		http.Error(w, "hid is required", http.StatusBadRequest)
-		return
-	}
-
-	fileName := strings.ToLower(collection) + ".json"
-	if fileName != "districts.json" && fileName != "cities.json" && fileName != "regions.json" {
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
-
-	var payload []byte
-	var err error
-	if runMode == "dev" {
-		payload, err = os.ReadFile(filepath.Join(dataDir, fileName))
-	} else {
-		payload, err = appFS.ReadFile(path.Join(dataDir, fileName))
-	}
-	if err != nil {
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
-
-	var data []map[string]any
-	if err := json.Unmarshal(payload, &data); err != nil {
-		http.Error(w, "invalid json in source file", http.StatusInternalServerError)
-		return
-	}
-
-	for _, item := range data {
-		itemHID, _ := item["hid"].(string)
-		if itemHID != hid {
-			continue
-		}
-		coords, ok := item["coords"]
-		if !ok {
-			coords = []any{}
-		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(coords)
-		return
-	}
-
-	http.Error(w, "not found", http.StatusNotFound)
-}
-
-func registerStaticRoutes(mux *http.ServeMux) error {
+func registerStaticRoutes(mux *http.ServeMux, locAPI *api.LocationsAPI) error {
 	webFS, err := fs.Sub(appFS, "build")
 	if err != nil {
 		return err
@@ -382,14 +222,22 @@ func registerStaticRoutes(mux *http.ServeMux) error {
 		}
 
 		if hasExtension(filePath) {
-			if serveEmbeddedFile(w, r, webFS, filePath) {
+			if serveEmbeddedFile(w, r, webFS, filePath, locAPI) {
 				return
 			}
 			http.NotFound(w, r)
 			return
 		}
 
-		_ = serveEmbeddedFile(w, r, webFS, "index.html")
+		if serveEmbeddedFile(w, r, webFS, filePath+".html", locAPI) {
+			return
+		}
+
+		if serveEmbeddedFile(w, r, webFS, path.Join(filePath, "index.html"), locAPI) {
+			return
+		}
+
+		_ = serveEmbeddedFile(w, r, webFS, "index.html", locAPI)
 	})
 
 	return nil
@@ -400,14 +248,84 @@ func hasExtension(filePath string) bool {
 	return strings.Contains(base, ".")
 }
 
-func serveEmbeddedFile(w http.ResponseWriter, r *http.Request, files fs.FS, filePath string) bool {
+func serveEmbeddedFile(w http.ResponseWriter, r *http.Request, files fs.FS, filePath string, locAPI *api.LocationsAPI) bool {
 	file, err := files.Open(filePath)
 	if err != nil {
 		return false
 	}
 	_ = file.Close()
+
+	if strings.HasSuffix(strings.ToLower(filePath), ".html") {
+		payload, err := fs.ReadFile(files, filePath)
+		if err != nil {
+			http.Error(w, "failed to read page", http.StatusInternalServerError)
+			return true
+		}
+
+		payload, err = injectTokenEndpointToken(payload, locAPI)
+		if err != nil {
+			http.Error(w, "failed to prepare page", http.StatusInternalServerError)
+			return true
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(payload)
+		return true
+	}
+
 	http.ServeFileFS(w, r, files, filePath)
 	return true
+}
+
+func injectTokenEndpointToken(payload []byte, locAPI *api.LocationsAPI) ([]byte, error) {
+	token, expiresAt, err := locAPI.IssueTokenEndpointToken()
+	if err != nil {
+		return nil, err
+	}
+
+	tokenPayload, err := json.Marshal(map[string]any{
+		"token":      token,
+		"expires_at": expiresAt,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	script := []byte("<script>window.TOKEN=" + string(tokenPayload) + ";</script>")
+	lowerPayload := strings.ToLower(string(payload))
+	headIndex := strings.Index(lowerPayload, "</head>")
+	if headIndex < 0 {
+		return append(script, payload...), nil
+	}
+
+	result := make([]byte, 0, len(payload)+len(script))
+	result = append(result, payload[:headIndex]...)
+	result = append(result, script...)
+	result = append(result, payload[headIndex:]...)
+	return result, nil
+}
+
+func readDataFile(name string) ([]byte, error) {
+	fullPath := filepath.Join(dataDir, name)
+	if payload, err := os.ReadFile(fullPath); err == nil {
+		return payload, nil
+	}
+
+	if runMode == "prod" {
+		return appFS.ReadFile(path.Join(dataDir, name))
+	}
+
+	return os.ReadFile(fullPath)
+}
+
+func loadEnvFiles(mode string) {
+	_ = godotenv.Load(".env")
+	if mode == "dev" {
+		_ = godotenv.Overload(".env.development")
+		return
+	}
+	_ = godotenv.Overload(".env.production")
 }
 
 func listenOrFind(startPort int, allowReuse bool) (net.Listener, int, bool, error) {

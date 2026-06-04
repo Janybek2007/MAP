@@ -8,6 +8,7 @@ node_modules
 /.svelte-kit
 /build
 data
+MAP.exe
 
 # OS
 .DS_Store
@@ -22,3 +23,5 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+MAP.exe
+MAP.exe

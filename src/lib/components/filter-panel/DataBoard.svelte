@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { mapStore } from '../../store/mapStore';
 	import { formatPopulation, selectedPopulation } from './helpers';
 
@@ -12,25 +13,11 @@
 		aria-label="Открыть или закрыть data board"
 		onclick={() => (open = !open)}
 	>
-		<svg width="14" height="14" viewBox="0 0 12 12" fill="none">
-			{#if open}
-				<path
-					d="M7.5 2L3.5 6l4 4"
-					stroke="currentColor"
-					stroke-width="1.8"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				></path>
-			{:else}
-				<path
-					d="M4.5 2l4 4-4 4"
-					stroke="currentColor"
-					stroke-width="1.8"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				></path>
-			{/if}
-		</svg>
+		{#if open}
+			<ChevronLeft size={14} strokeWidth={2.4} />
+		{:else}
+			<ChevronRight size={14} strokeWidth={2.4} />
+		{/if}
 	</button>
 	{#if open}
 		<div class="stats-content">
