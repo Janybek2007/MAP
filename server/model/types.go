@@ -1,4 +1,4 @@
-package api
+package model
 
 type CategoryChild struct {
 	Key   string `json:"key"`
@@ -34,32 +34,14 @@ type Location struct {
 	IsPartnerships       bool    `json:"is_partnerships"`
 }
 
-type locationsFile struct {
+type LocationsFile struct {
 	Locations []Location `json:"locations"`
 }
 
-type tokenRequest struct {
-	URL    string `json:"url"`
-	Method string `json:"method"`
-}
-
-type tokenResponse struct {
-	Token     string `json:"token"`
-	ExpiresAt int64  `json:"expires_at"`
-}
-
-type addChildCategoryRequest struct {
-	Label string `json:"label"`
-	Key   string `json:"key,omitempty"`
-}
-
-type updateChildCategoryRequest struct {
-	Label string `json:"label"`
-	Key   string `json:"key,omitempty"`
-}
-
-type errorResponse struct {
-	Code    string            `json:"code"`
-	Message string            `json:"message"`
-	Fields  map[string]string `json:"fields,omitempty"`
+type GeoItem struct {
+	HID        string  `json:"hid"`
+	Title      string  `json:"title"`
+	Population int     `json:"population"`
+	Lat        float64 `json:"lat"`
+	Lng        float64 `json:"lng"`
 }

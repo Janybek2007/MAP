@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"map/model"
+	"map/repository"
 	"net/http"
 	"slices"
 	"strconv"
@@ -21,24 +23,22 @@ const (
 
 type LocationsAPI struct {
 	router               chi.Router
-	storage              *Storage
+	repository           repository.Repository
 	tokenManager         *TokenManager
-	readFile             func(string) ([]byte, error)
 	protectTokenEndpoint bool
 }
 
-func NewLocationsAPI(router chi.Router, storage *Storage, tokenManager *TokenManager, readFile func(string) ([]byte, error), protectTokenEndpoint bool) *LocationsAPI {
+func NewLocationsAPI(router chi.Router, repo repository.Repository, tokenManager *TokenManager, protectTokenEndpoint bool) *LocationsAPI {
 	return &LocationsAPI{
 		router:               router,
-		storage:              storage,
+		repository:           repo,
 		tokenManager:         tokenManager,
-		readFile:             readFile,
 		protectTokenEndpoint: protectTokenEndpoint,
 	}
 }
 
-func RegisterRoute(router chi.Router, dataDir string, apiKey string, readFile func(string) ([]byte, error), protectTokenEndpoint bool) *LocationsAPI {
-	api := NewLocationsAPI(router, NewStorage(dataDir, readFile), NewTokenManager(apiKey), readFile, protectTokenEndpoint)
+func RegisterRoute(router chi.Router, apiKey string, repo repository.Repository, protectTokenEndpoint bool) *LocationsAPI {
+	api := NewLocationsAPI(router, repo, NewTokenManager(apiKey), protectTokenEndpoint)
 	api.register()
 	return api
 }
@@ -126,14 +126,14 @@ func (api *LocationsAPI) handleCreateToken(w http.ResponseWriter, r *http.Reques
 			return
 		}
 		responses := make([]tokenResponse, len(requests))
-		for i, req := range requests {
-			resp, err := api.tokenManager.Issue(req.Method, req.URL)
+		for index, request := range requests {
+			response, err := api.tokenManager.Issue(request.Method, request.URL)
 			if err != nil {
 				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, errorResponse{Code: "invalid_token_request", Message: err.Error()})
 				return
 			}
-			responses[i] = resp
+			responses[index] = response
 		}
 		render.JSON(w, r, responses)
 		return
@@ -165,7 +165,7 @@ func (api *LocationsAPI) setNextTokenEndpointHeaders(w http.ResponseWriter) bool
 }
 
 func (api *LocationsAPI) handleListLocations(w http.ResponseWriter, r *http.Request) {
-	locations, err := api.storage.LoadLocations()
+	locations, err := api.repository.ListLocations()
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse{Code: "locations_read_failed", Message: err.Error()})
@@ -188,7 +188,7 @@ func (api *LocationsAPI) handleGetLocation(w http.ResponseWriter, r *http.Reques
 }
 
 func (api *LocationsAPI) handleGetConfig(w http.ResponseWriter, r *http.Request) {
-	config, err := api.storage.LoadCategoryConfig()
+	config, err := api.repository.LoadCategoryConfig()
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse{Code: "config_read_failed", Message: err.Error()})
@@ -199,7 +199,7 @@ func (api *LocationsAPI) handleGetConfig(w http.ResponseWriter, r *http.Request)
 }
 
 func (api *LocationsAPI) handleCreateLocation(w http.ResponseWriter, r *http.Request) {
-	var location Location
+	var location model.Location
 	if err := render.DecodeJSON(r.Body, &location); err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "неверное тело запроса локации"})
@@ -220,15 +220,14 @@ func (api *LocationsAPI) handleCreateLocation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	normalized.HID = generateLocationHID(normalized.Name)
+	normalized.HID = repository.GenerateLocationHID(normalized.Name)
 	if hasLocationHID(locations, normalized.HID, "") {
 		render.Status(r, http.StatusConflict)
 		render.JSON(w, r, errorResponse{Code: "hid_conflict", Message: "локация с таким сгенерированным идентификатором уже существует"})
 		return
 	}
 
-	locations = append(locations, normalized)
-	if err := api.storage.SaveLocations(locations); err != nil {
+	if err := api.repository.CreateLocation(normalized); err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse{Code: "locations_write_failed", Message: err.Error()})
 		return
@@ -246,7 +245,7 @@ func (api *LocationsAPI) handleUpdateLocation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var location Location
+	var location model.Location
 	if err := render.DecodeJSON(r.Body, &location); err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "неверное тело запроса локации"})
@@ -260,7 +259,7 @@ func (api *LocationsAPI) handleUpdateLocation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	index := slices.IndexFunc(locations, func(item Location) bool {
+	index := slices.IndexFunc(locations, func(item model.Location) bool {
 		return item.HID == hid
 	})
 	if index < 0 {
@@ -276,15 +275,19 @@ func (api *LocationsAPI) handleUpdateLocation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	normalized.HID = generateLocationHID(normalized.Name)
+	normalized.HID = repository.GenerateLocationHID(normalized.Name)
 	if hasLocationHID(locations, normalized.HID, hid) {
 		render.Status(r, http.StatusConflict)
 		render.JSON(w, r, errorResponse{Code: "hid_conflict", Message: "локация с таким сгенерированным идентификатором уже существует"})
 		return
 	}
 
-	locations[index] = normalized
-	if err := api.storage.SaveLocations(locations); err != nil {
+	if err := api.repository.UpdateLocation(hid, normalized); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			render.Status(r, http.StatusNotFound)
+			render.JSON(w, r, errorResponse{Code: "location_not_found", Message: "локация не найдена"})
+			return
+		}
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse{Code: "locations_write_failed", Message: err.Error()})
 		return
@@ -301,24 +304,12 @@ func (api *LocationsAPI) handleDeleteLocation(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	locations, err := api.storage.LoadLocations()
-	if err != nil {
-		render.Status(r, http.StatusInternalServerError)
-		render.JSON(w, r, errorResponse{Code: "locations_read_failed", Message: err.Error()})
-		return
-	}
-
-	index := slices.IndexFunc(locations, func(item Location) bool {
-		return item.HID == hid
-	})
-	if index < 0 {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, errorResponse{Code: "location_not_found", Message: "локация не найдена"})
-		return
-	}
-
-	locations = append(locations[:index], locations[index+1:]...)
-	if err := api.storage.SaveLocations(locations); err != nil {
+	if err := api.repository.DeleteLocation(hid); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			render.Status(r, http.StatusNotFound)
+			render.JSON(w, r, errorResponse{Code: "location_not_found", Message: "локация не найдена"})
+			return
+		}
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse{Code: "locations_write_failed", Message: err.Error()})
 		return
@@ -342,7 +333,7 @@ func (api *LocationsAPI) handleCreateChildCategory(w http.ResponseWriter, r *htt
 		return
 	}
 
-	config, err := api.storage.LoadCategoryConfig()
+	config, err := api.repository.LoadCategoryConfig()
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse{Code: "config_read_failed", Message: err.Error()})
@@ -358,26 +349,21 @@ func (api *LocationsAPI) handleCreateChildCategory(w http.ResponseWriter, r *htt
 
 	key := strings.TrimSpace(request.Key)
 	if key == "" {
-		key = slugifyKey(label)
+		key = repository.SlugifyKey(label)
 	}
 
-	for categoryIndex := range config.Categories {
-		category := &config.Categories[categoryIndex]
+	for _, category := range config.Categories {
 		if category.Key != categoryKey {
 			continue
 		}
 
-		for _, child := range category.Children {
-			if child.Key == key {
-				render.Status(r, http.StatusConflict)
-				render.JSON(w, r, errorResponse{Code: "child_category_conflict", Message: "ключ подкатегории уже существует"})
-				return
-			}
+		created, err := api.repository.CreateChildCategory(categoryKey, model.CategoryChild{Key: key, Label: label})
+		if errors.Is(err, repository.ErrChildCategoryExists) {
+			render.Status(r, http.StatusConflict)
+			render.JSON(w, r, errorResponse{Code: "child_category_conflict", Message: "ключ подкатегории уже существует"})
+			return
 		}
-
-		created := CategoryChild{Key: key, Label: label}
-		category.Children = append(category.Children, created)
-		if err := api.storage.SaveCategoryConfig(config); err != nil {
+		if err != nil {
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, errorResponse{Code: "config_write_failed", Message: err.Error()})
 			return
@@ -417,83 +403,39 @@ func (api *LocationsAPI) handleUpdateChildCategory(w http.ResponseWriter, r *htt
 
 	newKey := strings.TrimSpace(request.Key)
 	if newKey == "" {
-		newKey = slugifyKey(label)
+		newKey = repository.SlugifyKey(label)
 	}
 
-	config, err := api.storage.LoadCategoryConfig()
+	config, err := api.repository.LoadCategoryConfig()
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse{Code: "config_read_failed", Message: err.Error()})
 		return
 	}
 
-	locations, err := api.storage.LoadLocations()
-	if err != nil {
-		render.Status(r, http.StatusInternalServerError)
-		render.JSON(w, r, errorResponse{Code: "locations_read_failed", Message: err.Error()})
-		return
-	}
-
-	for categoryIndex := range config.Categories {
-		category := &config.Categories[categoryIndex]
+	for _, category := range config.Categories {
 		if category.Key != categoryKey {
 			continue
 		}
 
-		childIndex := slices.IndexFunc(category.Children, func(child CategoryChild) bool {
-			return child.Key == childKey
-		})
-		if childIndex < 0 {
+		updated, err := api.repository.UpdateChildCategory(categoryKey, childKey, model.CategoryChild{Key: newKey, Label: label})
+		if errors.Is(err, repository.ErrChildCategoryExists) {
+			render.Status(r, http.StatusConflict)
+			render.JSON(w, r, errorResponse{Code: "child_category_conflict", Message: "ключ подкатегории уже существует"})
+			return
+		}
+		if errors.Is(err, repository.ErrNotFound) {
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, errorResponse{Code: "child_category_not_found", Message: "подкатегория не найдена"})
 			return
 		}
-
-		for index, child := range category.Children {
-			if index == childIndex {
-				continue
-			}
-			if child.Key == newKey {
-				render.Status(r, http.StatusConflict)
-				render.JSON(w, r, errorResponse{Code: "child_category_conflict", Message: "ключ подкатегории уже существует"})
-				return
-			}
-		}
-
-		category.Children[childIndex] = CategoryChild{Key: newKey, Label: label}
-
-		for index := range locations {
-			if locations[index].Category != categoryKey {
-				continue
-			}
-
-			if categoryKey == "bonetsky" {
-				if locations[index].Type != childKey {
-					continue
-				}
-				locations[index].Type = newKey
-				locations[index].TypeDisplay = label
-			} else {
-				if locations[index].ChildCategory != childKey {
-					continue
-				}
-				locations[index].ChildCategory = newKey
-				locations[index].ChildCategoryDisplay = label
-			}
-		}
-
-		if err := api.storage.SaveCategoryConfig(config); err != nil {
+		if err != nil {
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, errorResponse{Code: "config_write_failed", Message: err.Error()})
 			return
 		}
-		if err := api.storage.SaveLocations(locations); err != nil {
-			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, errorResponse{Code: "locations_write_failed", Message: err.Error()})
-			return
-		}
 
-		render.JSON(w, r, category.Children[childIndex])
+		render.JSON(w, r, updated)
 		return
 	}
 
@@ -510,58 +452,30 @@ func (api *LocationsAPI) handleDeleteChildCategory(w http.ResponseWriter, r *htt
 		return
 	}
 
-	config, err := api.storage.LoadCategoryConfig()
+	config, err := api.repository.LoadCategoryConfig()
 	if err != nil {
 		render.Status(r, http.StatusInternalServerError)
 		render.JSON(w, r, errorResponse{Code: "config_read_failed", Message: err.Error()})
 		return
 	}
 
-	locations, err := api.storage.LoadLocations()
-	if err != nil {
-		render.Status(r, http.StatusInternalServerError)
-		render.JSON(w, r, errorResponse{Code: "locations_read_failed", Message: err.Error()})
-		return
-	}
-
-	for _, location := range locations {
-		if location.Category != categoryKey {
-			continue
-		}
-
-		if categoryKey == "bonetsky" {
-			if location.Type == childKey {
-				render.Status(r, http.StatusConflict)
-				render.JSON(w, r, errorResponse{Code: "child_category_in_use", Message: "подкатегория используется в существующих локациях"})
-				return
-			}
-			continue
-		}
-
-		if location.ChildCategory == childKey {
-			render.Status(r, http.StatusConflict)
-			render.JSON(w, r, errorResponse{Code: "child_category_in_use", Message: "подкатегория используется в существующих локациях"})
-			return
-		}
-	}
-
-	for categoryIndex := range config.Categories {
-		category := &config.Categories[categoryIndex]
+	for _, category := range config.Categories {
 		if category.Key != categoryKey {
 			continue
 		}
 
-		childIndex := slices.IndexFunc(category.Children, func(child CategoryChild) bool {
-			return child.Key == childKey
-		})
-		if childIndex < 0 {
+		err := api.repository.DeleteChildCategory(categoryKey, childKey)
+		if errors.Is(err, repository.ErrChildCategoryInUse) {
+			render.Status(r, http.StatusConflict)
+			render.JSON(w, r, errorResponse{Code: "child_category_in_use", Message: "подкатегория используется в существующих локациях"})
+			return
+		}
+		if errors.Is(err, repository.ErrNotFound) {
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, errorResponse{Code: "child_category_not_found", Message: "подкатегория не найдена"})
 			return
 		}
-
-		category.Children = append(category.Children[:childIndex], category.Children[childIndex+1:]...)
-		if err := api.storage.SaveCategoryConfig(config); err != nil {
+		if err != nil {
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, errorResponse{Code: "config_write_failed", Message: err.Error()})
 			return
@@ -575,36 +489,30 @@ func (api *LocationsAPI) handleDeleteChildCategory(w http.ResponseWriter, r *htt
 	render.JSON(w, r, errorResponse{Code: "category_not_found", Message: "категория не найдена"})
 }
 
-func (api *LocationsAPI) loadLocationsAndConfig() ([]Location, CategoryConfigFile, error) {
-	locations, err := api.storage.LoadLocations()
+func (api *LocationsAPI) loadLocationsAndConfig() ([]model.Location, model.CategoryConfigFile, error) {
+	locations, err := api.repository.ListLocations()
 	if err != nil {
-		return nil, CategoryConfigFile{}, err
+		return nil, model.CategoryConfigFile{}, err
 	}
 
-	config, err := api.storage.LoadCategoryConfig()
+	config, err := api.repository.LoadCategoryConfig()
 	if err != nil {
-		return nil, CategoryConfigFile{}, err
+		return nil, model.CategoryConfigFile{}, err
 	}
 
 	return locations, config, nil
 }
 
-func (api *LocationsAPI) findLocationByHID(hid string) (Location, error) {
-	locations, err := api.storage.LoadLocations()
+func (api *LocationsAPI) findLocationByHID(hid string) (model.Location, error) {
+	location, err := api.repository.GetLocationByHID(hid)
 	if err != nil {
-		return Location{}, err
+		return model.Location{}, err
 	}
 
-	for _, location := range locations {
-		if location.HID == hid {
-			return location, nil
-		}
-	}
-
-	return Location{}, errors.New("не найдено")
+	return location, nil
 }
 
-func hasLocationHID(locations []Location, hid string, skipHID string) bool {
+func hasLocationHID(locations []model.Location, hid string, skipHID string) bool {
 	for _, location := range locations {
 		if location.HID == hid && location.HID != skipHID {
 			return true
@@ -613,7 +521,7 @@ func hasLocationHID(locations []Location, hid string, skipHID string) bool {
 	return false
 }
 
-func normalizeAndValidateLocation(location Location, config CategoryConfigFile) (Location, map[string]string) {
+func normalizeAndValidateLocation(location model.Location, config model.CategoryConfigFile) (model.Location, map[string]string) {
 	normalized := location
 	fieldErrors := map[string]string{}
 
@@ -675,7 +583,7 @@ func normalizeAndValidateLocation(location Location, config CategoryConfigFile) 
 	return normalized, fieldErrors
 }
 
-func findCategoryConfig(config CategoryConfigFile, categoryKey string, childKey string) (CategoryConfig, CategoryChild, bool) {
+func findCategoryConfig(config model.CategoryConfigFile, categoryKey string, childKey string) (model.CategoryConfig, model.CategoryChild, bool) {
 	for _, category := range config.Categories {
 		if category.Key != categoryKey {
 			continue
@@ -687,7 +595,7 @@ func findCategoryConfig(config CategoryConfigFile, categoryKey string, childKey 
 					return category, child, true
 				}
 			}
-			return category, CategoryChild{}, true
+			return category, model.CategoryChild{}, true
 		}
 
 		for _, child := range category.Children {
@@ -695,8 +603,8 @@ func findCategoryConfig(config CategoryConfigFile, categoryKey string, childKey 
 				return category, child, true
 			}
 		}
-		return category, CategoryChild{}, true
+		return category, model.CategoryChild{}, true
 	}
 
-	return CategoryConfig{}, CategoryChild{}, false
+	return model.CategoryConfig{}, model.CategoryChild{}, false
 }

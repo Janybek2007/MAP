@@ -8,7 +8,11 @@ node_modules
 /.svelte-kit
 /build
 data
-MAP.exe
+./MAP.exe
+./MAP
+_commit.txt
+server/storage/
+server/build/
 
 # OS
 .DS_Store

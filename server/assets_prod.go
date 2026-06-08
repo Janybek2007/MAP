@@ -4,5 +4,5 @@ package main
 
 import "embed"
 
-//go:embed build build/* data data/*
+//go:embed build build/*
 var appFS embed.FS

@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,28 +10,19 @@ import (
 	"path/filepath"
 	"testing"
 
+	"map/model"
+	"map/repository"
+	dbsqlite "map/sqlite"
+
 	"github.com/go-chi/chi/v5"
 )
 
 func TestLocationsCRUDFlow(t *testing.T) {
 	dataDir := t.TempDir()
-	writeTestJSON(t, filepath.Join(dataDir, "locations.json"), locationsFile{Locations: []Location{}})
-	writeTestJSON(t, filepath.Join(dataDir, "location_categories.json"), CategoryConfigFile{
-		Categories: []CategoryConfig{
-			{
-				Key:   "chastnyi",
-				Label: "Частные клиники",
-				Children: []CategoryChild{
-					{Key: "ginekologiia", Label: "Гинекология"},
-				},
-			},
-		},
-	})
+	database := setupSQLiteForTest(t, dataDir)
+	defer database.Close()
 
-	router := chi.NewRouter()
-	RegisterRoute(router, dataDir, "secret-key", func(name string) ([]byte, error) {
-		return os.ReadFile(filepath.Join(dataDir, name))
-	}, false)
+	router := buildTestRouter(t, database, dataDir)
 
 	token := issueTestToken(t, router, "/api/locations", http.MethodPost)
 
@@ -55,7 +47,7 @@ func TestLocationsCRUDFlow(t *testing.T) {
 		t.Fatalf("expected 201, got %d: %s", createRecorder.Code, createRecorder.Body.String())
 	}
 
-	var created Location
+	var created model.Location
 	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
 		t.Fatalf("cannot decode created location: %v", err)
 	}
@@ -89,7 +81,7 @@ func TestLocationsCRUDFlow(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", updateRecorder.Code, updateRecorder.Body.String())
 	}
 
-	var updated Location
+	var updated model.Location
 	if err := json.Unmarshal(updateRecorder.Body.Bytes(), &updated); err != nil {
 		t.Fatalf("cannot decode updated location: %v", err)
 	}
@@ -125,10 +117,12 @@ func TestTokenIsSingleUse(t *testing.T) {
 
 func TestTokenEndpointProtection(t *testing.T) {
 	dataDir := t.TempDir()
+	database := setupSQLiteForTest(t, dataDir)
+	defer database.Close()
+
 	router := chi.NewRouter()
-	locAPI := RegisterRoute(router, dataDir, "secret-key", func(name string) ([]byte, error) {
-		return os.ReadFile(filepath.Join(dataDir, name))
-	}, true)
+	repo := repository.NewSQLiteRepository(database)
+	locAPI := RegisterRoute(router, "secret-key", repo, true)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/tokens", mustJSONBody(t, map[string]string{
@@ -175,24 +169,10 @@ func TestTokenEndpointTokenCannotBeUsedAsResourceToken(t *testing.T) {
 
 func TestAddChildCategory(t *testing.T) {
 	dataDir := t.TempDir()
-	writeTestJSON(t, filepath.Join(dataDir, "locations.json"), locationsFile{Locations: []Location{}})
-	writeTestJSON(t, filepath.Join(dataDir, "location_categories.json"), CategoryConfigFile{
-		Categories: []CategoryConfig{
-			{
-				Key:   "chastnyi",
-				Label: "Частные клиники",
-				Children: []CategoryChild{
-					{Key: "ginekologiia", Label: "Гинекология"},
-				},
-			},
-		},
-	})
+	database := setupSQLiteForTest(t, dataDir)
+	defer database.Close()
 
-	router := chi.NewRouter()
-	RegisterRoute(router, dataDir, "secret-key", func(name string) ([]byte, error) {
-		return os.ReadFile(filepath.Join(dataDir, name))
-	}, false)
-
+	router := buildTestRouter(t, database, dataDir)
 	token := issueTestToken(t, router, "/api/location-config/chastnyi/children", http.MethodPost)
 
 	recorder := httptest.NewRecorder()
@@ -209,53 +189,30 @@ func TestAddChildCategory(t *testing.T) {
 		t.Fatalf("expected 201, got %d: %s", recorder.Code, recorder.Body.String())
 	}
 
-	configPayload, err := os.ReadFile(filepath.Join(dataDir, "location_categories.json"))
+	repo := repository.NewSQLiteRepository(database)
+	config, err := repo.LoadCategoryConfig()
 	if err != nil {
-		t.Fatalf("cannot read config file: %v", err)
+		t.Fatalf("cannot load category config: %v", err)
 	}
 
-	var config CategoryConfigFile
-	if err := json.Unmarshal(configPayload, &config); err != nil {
-		t.Fatalf("cannot decode config: %v", err)
+	for _, category := range config.Categories {
+		if category.Key != "chastnyi" {
+			continue
+		}
+		if len(category.Children) != 3 {
+			t.Fatalf("expected 3 child categories, got %d", len(category.Children))
+		}
+		return
 	}
-
-	if len(config.Categories[0].Children) != 2 {
-		t.Fatalf("expected 2 child categories, got %d", len(config.Categories[0].Children))
-	}
+	t.Fatal("category chastnyi not found")
 }
 
 func TestUpdateChildCategory(t *testing.T) {
 	dataDir := t.TempDir()
-	writeTestJSON(t, filepath.Join(dataDir, "locations.json"), locationsFile{
-		Locations: []Location{
-			{
-				HID:                  "1",
-				Name:                 "Клиника",
-				Category:             "chastnyi",
-				ChildCategory:        "ginekologiia",
-				ChildCategoryDisplay: "Гинекология",
-				CategoryDisplay:      "Частные клиники",
-				Lat:                  42.8,
-				Lng:                  74.6,
-			},
-		},
-	})
-	writeTestJSON(t, filepath.Join(dataDir, "location_categories.json"), CategoryConfigFile{
-		Categories: []CategoryConfig{
-			{
-				Key:   "chastnyi",
-				Label: "Частные клиники",
-				Children: []CategoryChild{
-					{Key: "ginekologiia", Label: "Гинекология"},
-				},
-			},
-		},
-	})
+	database := setupSQLiteForTest(t, dataDir)
+	defer database.Close()
 
-	router := chi.NewRouter()
-	RegisterRoute(router, dataDir, "secret-key", func(name string) ([]byte, error) {
-		return os.ReadFile(filepath.Join(dataDir, name))
-	}, false)
+	router := buildTestRouter(t, database, dataDir)
 	token := issueTestToken(t, router, "/api/location-config/chastnyi/children/ginekologiia", http.MethodPut)
 
 	recorder := httptest.NewRecorder()
@@ -272,49 +229,22 @@ func TestUpdateChildCategory(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
 	}
 
-	payload, err := os.ReadFile(filepath.Join(dataDir, "locations.json"))
+	repo := repository.NewSQLiteRepository(database)
+	location, err := repo.GetLocationByHID("clinic-1")
 	if err != nil {
-		t.Fatalf("cannot read locations file: %v", err)
+		t.Fatalf("cannot get location: %v", err)
 	}
-	var wrapped locationsFile
-	if err := json.Unmarshal(payload, &wrapped); err != nil {
-		t.Fatalf("cannot decode locations file: %v", err)
-	}
-	if wrapped.Locations[0].ChildCategory != "endokrinologiia" {
-		t.Fatalf("expected updated child category key, got %q", wrapped.Locations[0].ChildCategory)
+	if location.ChildCategory != "endokrinologiia" {
+		t.Fatalf("expected updated child category key, got %q", location.ChildCategory)
 	}
 }
 
 func TestDeleteChildCategoryInUseFails(t *testing.T) {
 	dataDir := t.TempDir()
-	writeTestJSON(t, filepath.Join(dataDir, "locations.json"), locationsFile{
-		Locations: []Location{
-			{
-				HID:           "1",
-				Name:          "Клиника",
-				Category:      "chastnyi",
-				ChildCategory: "ginekologiia",
-				Lat:           42.8,
-				Lng:           74.6,
-			},
-		},
-	})
-	writeTestJSON(t, filepath.Join(dataDir, "location_categories.json"), CategoryConfigFile{
-		Categories: []CategoryConfig{
-			{
-				Key:   "chastnyi",
-				Label: "Частные клиники",
-				Children: []CategoryChild{
-					{Key: "ginekologiia", Label: "Гинекология"},
-				},
-			},
-		},
-	})
+	database := setupSQLiteForTest(t, dataDir)
+	defer database.Close()
 
-	router := chi.NewRouter()
-	RegisterRoute(router, dataDir, "secret-key", func(name string) ([]byte, error) {
-		return os.ReadFile(filepath.Join(dataDir, name))
-	}, false)
+	router := buildTestRouter(t, database, dataDir)
 	token := issueTestToken(t, router, "/api/location-config/chastnyi/children/ginekologiia", http.MethodDelete)
 
 	recorder := httptest.NewRecorder()
@@ -325,6 +255,62 @@ func TestDeleteChildCategoryInUseFails(t *testing.T) {
 	if recorder.Code != http.StatusConflict {
 		t.Fatalf("expected 409, got %d: %s", recorder.Code, recorder.Body.String())
 	}
+}
+
+func buildTestRouter(t *testing.T, database *sql.DB, dataDir string) http.Handler {
+	t.Helper()
+
+	router := chi.NewRouter()
+	repo := repository.NewSQLiteRepository(database)
+	RegisterRoute(router, "secret-key", repo, false)
+	return router
+}
+
+func setupSQLiteForTest(t *testing.T, dataDir string) *sql.DB {
+	t.Helper()
+
+	writeBootstrapJSON(t, filepath.Join(dataDir, "location_categories.json"), model.CategoryConfigFile{
+		Categories: []model.CategoryConfig{
+			{Key: "bonetsky", Label: "Филиалы Бонецкого", Children: []model.CategoryChild{{Key: "pp", Label: "ПП"}}},
+			{Key: "gos", Label: "ГОС", Children: []model.CategoryChild{{Key: "poliklinika", Label: "Поликлиника"}}},
+			{Key: "rival", Label: "Конкуренты", Children: []model.CategoryChild{{Key: "rival_express", Label: "Экспресс"}}},
+			{Key: "chastnyi", Label: "Частные клиники", Children: []model.CategoryChild{{Key: "ginekologiia", Label: "Гинекология"}, {Key: "pediatriia", Label: "Педиатрия"}}},
+		},
+	})
+
+	writeBootstrapJSON(t, filepath.Join(dataDir, "locations.json"), model.LocationsFile{
+		Locations: []model.Location{
+			{
+				HID:                  "clinic-1",
+				Name:                 "Клиника",
+				Address:              "Адрес",
+				Category:             "chastnyi",
+				ChildCategory:        "ginekologiia",
+				CategoryDisplay:      "Частные клиники",
+				ChildCategoryDisplay: "Гинекология",
+				Lat:                  42.8,
+				Lng:                  74.6,
+			},
+		},
+	})
+
+	writeBootstrapJSON(t, filepath.Join(dataDir, "cities.json"), []map[string]any{})
+	writeBootstrapJSON(t, filepath.Join(dataDir, "districts.json"), []map[string]any{})
+	writeBootstrapJSON(t, filepath.Join(dataDir, "regions.json"), []map[string]any{})
+
+	databasePath := filepath.Join(dataDir, "test.sqlite")
+	database, err := dbsqlite.OpenAndMigrate(databasePath)
+	if err != nil {
+		t.Fatalf("cannot open sqlite: %v", err)
+	}
+
+	if err := repository.BootstrapIfEmpty(database, func(name string) ([]byte, error) {
+		return os.ReadFile(filepath.Join(dataDir, name))
+	}); err != nil {
+		t.Fatalf("cannot bootstrap sqlite: %v", err)
+	}
+
+	return database
 }
 
 func issueTestToken(t *testing.T, router http.Handler, url string, method string) string {
@@ -359,7 +345,7 @@ func mustJSONBody(t *testing.T, value any) *bytes.Reader {
 	return bytes.NewReader(payload)
 }
 
-func writeTestJSON(t *testing.T, path string, value any) {
+func writeBootstrapJSON(t *testing.T, path string, value any) {
 	t.Helper()
 	payload, err := json.Marshal(value)
 	if err != nil {
