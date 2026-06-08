@@ -169,7 +169,7 @@
 						<button
 							class="danger-btn"
 							type="button"
-							onclick={() => store.deleteLocation(location.hid ?? '')}>Удалить</button
+							onclick={() => store.confirmDeleteLocation(location.hid ?? '')}>Удалить</button
 						>
 					</div>
 				</div>

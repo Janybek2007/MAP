@@ -264,10 +264,6 @@
 			</label>
 		</div>
 
-		{#if store.formError}
-			<div class="manage-alert manage-alert-error">{store.formError}</div>
-		{/if}
-
 		<div class="form-actions">
 			<button
 				class="primary-btn"

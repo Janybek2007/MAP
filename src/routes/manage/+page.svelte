@@ -3,6 +3,8 @@
 	import CategoryList from '$lib/components/manage/CategoryList.svelte';
 	import LocationForm from '$lib/components/manage/LocationForm.svelte';
 	import LocationList from '$lib/components/manage/LocationList.svelte';
+	import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
+	import Toast from '$lib/components/ui/Toast.svelte';
 	import { createManageStore } from '$lib/manage/store.svelte';
 	import './manage.css';
 
@@ -26,10 +28,6 @@
 </svelte:head>
 
 <div class="manage-page">
-	{#if store.loadError}
-		<div class="manage-alert manage-alert-error">{store.loadError}</div>
-	{/if}
-
 	<div class="manage-layout">
 		<section class="manage-card manage-list-card">
 			<div class="tab-bar">
@@ -59,3 +57,17 @@
 		<LocationForm {store} />
 	</div>
 </div>
+
+<ConfirmModal
+	open={store.confirmDialog.open}
+	title={store.confirmDialog.title}
+	message={store.confirmDialog.message}
+	confirmLabel={store.confirmDialog.confirmLabel}
+	cancelLabel={store.confirmDialog.cancelLabel}
+	tone={store.confirmDialog.tone}
+	loading={store.isConfirming}
+	onconfirm={() => store.submitConfirm()}
+	onclose={() => store.closeConfirm()}
+/>
+
+<Toast items={store.toasts} onclose={(id) => store.dismissToast(id)} />

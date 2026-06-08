@@ -38,7 +38,7 @@ func NewLocationsAPI(router chi.Router, storage *Storage, tokenManager *TokenMan
 }
 
 func RegisterRoute(router chi.Router, dataDir string, apiKey string, readFile func(string) ([]byte, error), protectTokenEndpoint bool) *LocationsAPI {
-	api := NewLocationsAPI(router, NewStorage(dataDir), NewTokenManager(apiKey), readFile, protectTokenEndpoint)
+	api := NewLocationsAPI(router, NewStorage(dataDir, readFile), NewTokenManager(apiKey), readFile, protectTokenEndpoint)
 	api.register()
 	return api
 }
@@ -75,7 +75,7 @@ func (api *LocationsAPI) tokenMiddleware(next http.Handler) http.Handler {
 		token := strings.TrimSpace(r.Header.Get(tokenHeader))
 		if token == "" {
 			render.Status(r, http.StatusUnauthorized)
-			render.JSON(w, r, errorResponse{Code: "missing_token", Message: "resource token is required"})
+			render.JSON(w, r, errorResponse{Code: "missing_token", Message: "токен доступа к ресурсу обязателен"})
 			return
 		}
 
@@ -94,7 +94,7 @@ func (api *LocationsAPI) handleCreateToken(w http.ResponseWriter, r *http.Reques
 		token := strings.TrimSpace(r.Header.Get(tokenEndpointHeader))
 		if token == "" {
 			render.Status(r, http.StatusUnauthorized)
-			render.JSON(w, r, errorResponse{Code: "missing_token_endpoint_token", Message: "token endpoint token is required"})
+			render.JSON(w, r, errorResponse{Code: "missing_token_endpoint_token", Message: "токен для маршрута выдачи токенов обязателен"})
 			return
 		}
 
@@ -106,7 +106,7 @@ func (api *LocationsAPI) handleCreateToken(w http.ResponseWriter, r *http.Reques
 
 		if !api.setNextTokenEndpointHeaders(w) {
 			render.Status(r, http.StatusInternalServerError)
-			render.JSON(w, r, errorResponse{Code: "token_endpoint_issue_failed", Message: "failed to issue next token endpoint token"})
+			render.JSON(w, r, errorResponse{Code: "token_endpoint_issue_failed", Message: "не удалось выдать следующий токен для маршрута выдачи токенов"})
 			return
 		}
 	}
@@ -114,7 +114,7 @@ func (api *LocationsAPI) handleCreateToken(w http.ResponseWriter, r *http.Reques
 	var raw json.RawMessage
 	if err := render.DecodeJSON(r.Body, &raw); err != nil {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "invalid token request body"})
+		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "неверное тело запроса на выдачу токена"})
 		return
 	}
 
@@ -122,7 +122,7 @@ func (api *LocationsAPI) handleCreateToken(w http.ResponseWriter, r *http.Reques
 		var requests []tokenRequest
 		if err := json.Unmarshal(raw, &requests); err != nil {
 			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "invalid token request body"})
+			render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "неверное тело запроса на выдачу токена"})
 			return
 		}
 		responses := make([]tokenResponse, len(requests))
@@ -142,7 +142,7 @@ func (api *LocationsAPI) handleCreateToken(w http.ResponseWriter, r *http.Reques
 	var request tokenRequest
 	if err := json.Unmarshal(raw, &request); err != nil {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "invalid token request body"})
+		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "неверное тело запроса на выдачу токена"})
 		return
 	}
 	response, err := api.tokenManager.Issue(request.Method, request.URL)
@@ -180,7 +180,7 @@ func (api *LocationsAPI) handleGetLocation(w http.ResponseWriter, r *http.Reques
 	location, err := api.findLocationByHID(hid)
 	if err != nil {
 		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, errorResponse{Code: "location_not_found", Message: "location not found"})
+		render.JSON(w, r, errorResponse{Code: "location_not_found", Message: "локация не найдена"})
 		return
 	}
 
@@ -202,7 +202,7 @@ func (api *LocationsAPI) handleCreateLocation(w http.ResponseWriter, r *http.Req
 	var location Location
 	if err := render.DecodeJSON(r.Body, &location); err != nil {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "invalid location body"})
+		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "неверное тело запроса локации"})
 		return
 	}
 
@@ -216,14 +216,14 @@ func (api *LocationsAPI) handleCreateLocation(w http.ResponseWriter, r *http.Req
 	normalized, fieldErrors := normalizeAndValidateLocation(location, config)
 	if len(fieldErrors) > 0 {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "validation_failed", Message: "location validation failed", Fields: fieldErrors})
+		render.JSON(w, r, errorResponse{Code: "validation_failed", Message: "не удалось пройти валидацию локации", Fields: fieldErrors})
 		return
 	}
 
 	normalized.HID = generateLocationHID(normalized.Name)
 	if hasLocationHID(locations, normalized.HID, "") {
 		render.Status(r, http.StatusConflict)
-		render.JSON(w, r, errorResponse{Code: "hid_conflict", Message: "location with same generated hid already exists"})
+		render.JSON(w, r, errorResponse{Code: "hid_conflict", Message: "локация с таким сгенерированным идентификатором уже существует"})
 		return
 	}
 
@@ -242,14 +242,14 @@ func (api *LocationsAPI) handleUpdateLocation(w http.ResponseWriter, r *http.Req
 	hid := chi.URLParam(r, "hid")
 	if strings.TrimSpace(hid) == "" {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_hid", Message: "hid is required"})
+		render.JSON(w, r, errorResponse{Code: "invalid_hid", Message: "идентификатор обязателен"})
 		return
 	}
 
 	var location Location
 	if err := render.DecodeJSON(r.Body, &location); err != nil {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "invalid location body"})
+		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "неверное тело запроса локации"})
 		return
 	}
 
@@ -265,21 +265,21 @@ func (api *LocationsAPI) handleUpdateLocation(w http.ResponseWriter, r *http.Req
 	})
 	if index < 0 {
 		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, errorResponse{Code: "location_not_found", Message: "location not found"})
+		render.JSON(w, r, errorResponse{Code: "location_not_found", Message: "локация не найдена"})
 		return
 	}
 
 	normalized, fieldErrors := normalizeAndValidateLocation(location, config)
 	if len(fieldErrors) > 0 {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "validation_failed", Message: "location validation failed", Fields: fieldErrors})
+		render.JSON(w, r, errorResponse{Code: "validation_failed", Message: "не удалось пройти валидацию локации", Fields: fieldErrors})
 		return
 	}
 
 	normalized.HID = generateLocationHID(normalized.Name)
 	if hasLocationHID(locations, normalized.HID, hid) {
 		render.Status(r, http.StatusConflict)
-		render.JSON(w, r, errorResponse{Code: "hid_conflict", Message: "location with same generated hid already exists"})
+		render.JSON(w, r, errorResponse{Code: "hid_conflict", Message: "локация с таким сгенерированным идентификатором уже существует"})
 		return
 	}
 
@@ -297,7 +297,7 @@ func (api *LocationsAPI) handleDeleteLocation(w http.ResponseWriter, r *http.Req
 	hid := chi.URLParam(r, "hid")
 	if strings.TrimSpace(hid) == "" {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_hid", Message: "hid is required"})
+		render.JSON(w, r, errorResponse{Code: "invalid_hid", Message: "идентификатор обязателен"})
 		return
 	}
 
@@ -313,7 +313,7 @@ func (api *LocationsAPI) handleDeleteLocation(w http.ResponseWriter, r *http.Req
 	})
 	if index < 0 {
 		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, errorResponse{Code: "location_not_found", Message: "location not found"})
+		render.JSON(w, r, errorResponse{Code: "location_not_found", Message: "локация не найдена"})
 		return
 	}
 
@@ -331,14 +331,14 @@ func (api *LocationsAPI) handleCreateChildCategory(w http.ResponseWriter, r *htt
 	categoryKey := strings.TrimSpace(chi.URLParam(r, "category"))
 	if categoryKey == "" {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_category", Message: "category is required"})
+		render.JSON(w, r, errorResponse{Code: "invalid_category", Message: "категория обязательна"})
 		return
 	}
 
 	var request addChildCategoryRequest
 	if err := render.DecodeJSON(r.Body, &request); err != nil {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "invalid child category body"})
+		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "неверное тело запроса подкатегории"})
 		return
 	}
 
@@ -352,7 +352,7 @@ func (api *LocationsAPI) handleCreateChildCategory(w http.ResponseWriter, r *htt
 	label := strings.TrimSpace(request.Label)
 	if label == "" {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "validation_failed", Message: "label is required", Fields: map[string]string{"label": "label is required"}})
+		render.JSON(w, r, errorResponse{Code: "validation_failed", Message: "название обязательно", Fields: map[string]string{"label": "название обязательно"}})
 		return
 	}
 
@@ -370,7 +370,7 @@ func (api *LocationsAPI) handleCreateChildCategory(w http.ResponseWriter, r *htt
 		for _, child := range category.Children {
 			if child.Key == key {
 				render.Status(r, http.StatusConflict)
-				render.JSON(w, r, errorResponse{Code: "child_category_conflict", Message: "child category key already exists"})
+				render.JSON(w, r, errorResponse{Code: "child_category_conflict", Message: "ключ подкатегории уже существует"})
 				return
 			}
 		}
@@ -389,7 +389,7 @@ func (api *LocationsAPI) handleCreateChildCategory(w http.ResponseWriter, r *htt
 	}
 
 	render.Status(r, http.StatusNotFound)
-	render.JSON(w, r, errorResponse{Code: "category_not_found", Message: "category not found"})
+	render.JSON(w, r, errorResponse{Code: "category_not_found", Message: "категория не найдена"})
 }
 
 func (api *LocationsAPI) handleUpdateChildCategory(w http.ResponseWriter, r *http.Request) {
@@ -397,21 +397,21 @@ func (api *LocationsAPI) handleUpdateChildCategory(w http.ResponseWriter, r *htt
 	childKey := strings.TrimSpace(chi.URLParam(r, "child"))
 	if categoryKey == "" || childKey == "" {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_params", Message: "category and child are required"})
+		render.JSON(w, r, errorResponse{Code: "invalid_params", Message: "категория и подкатегория обязательны"})
 		return
 	}
 
 	var request updateChildCategoryRequest
 	if err := render.DecodeJSON(r.Body, &request); err != nil {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "invalid child category body"})
+		render.JSON(w, r, errorResponse{Code: "invalid_body", Message: "неверное тело запроса подкатегории"})
 		return
 	}
 
 	label := strings.TrimSpace(request.Label)
 	if label == "" {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "validation_failed", Message: "label is required", Fields: map[string]string{"label": "label is required"}})
+		render.JSON(w, r, errorResponse{Code: "validation_failed", Message: "название обязательно", Fields: map[string]string{"label": "название обязательно"}})
 		return
 	}
 
@@ -445,7 +445,7 @@ func (api *LocationsAPI) handleUpdateChildCategory(w http.ResponseWriter, r *htt
 		})
 		if childIndex < 0 {
 			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, errorResponse{Code: "child_category_not_found", Message: "child category not found"})
+			render.JSON(w, r, errorResponse{Code: "child_category_not_found", Message: "подкатегория не найдена"})
 			return
 		}
 
@@ -455,7 +455,7 @@ func (api *LocationsAPI) handleUpdateChildCategory(w http.ResponseWriter, r *htt
 			}
 			if child.Key == newKey {
 				render.Status(r, http.StatusConflict)
-				render.JSON(w, r, errorResponse{Code: "child_category_conflict", Message: "child category key already exists"})
+				render.JSON(w, r, errorResponse{Code: "child_category_conflict", Message: "ключ подкатегории уже существует"})
 				return
 			}
 		}
@@ -498,7 +498,7 @@ func (api *LocationsAPI) handleUpdateChildCategory(w http.ResponseWriter, r *htt
 	}
 
 	render.Status(r, http.StatusNotFound)
-	render.JSON(w, r, errorResponse{Code: "category_not_found", Message: "category not found"})
+	render.JSON(w, r, errorResponse{Code: "category_not_found", Message: "категория не найдена"})
 }
 
 func (api *LocationsAPI) handleDeleteChildCategory(w http.ResponseWriter, r *http.Request) {
@@ -506,7 +506,7 @@ func (api *LocationsAPI) handleDeleteChildCategory(w http.ResponseWriter, r *htt
 	childKey := strings.TrimSpace(chi.URLParam(r, "child"))
 	if categoryKey == "" || childKey == "" {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_params", Message: "category and child are required"})
+		render.JSON(w, r, errorResponse{Code: "invalid_params", Message: "категория и подкатегория обязательны"})
 		return
 	}
 
@@ -532,7 +532,7 @@ func (api *LocationsAPI) handleDeleteChildCategory(w http.ResponseWriter, r *htt
 		if categoryKey == "bonetsky" {
 			if location.Type == childKey {
 				render.Status(r, http.StatusConflict)
-				render.JSON(w, r, errorResponse{Code: "child_category_in_use", Message: "child category is used by existing locations"})
+				render.JSON(w, r, errorResponse{Code: "child_category_in_use", Message: "подкатегория используется в существующих локациях"})
 				return
 			}
 			continue
@@ -540,7 +540,7 @@ func (api *LocationsAPI) handleDeleteChildCategory(w http.ResponseWriter, r *htt
 
 		if location.ChildCategory == childKey {
 			render.Status(r, http.StatusConflict)
-			render.JSON(w, r, errorResponse{Code: "child_category_in_use", Message: "child category is used by existing locations"})
+			render.JSON(w, r, errorResponse{Code: "child_category_in_use", Message: "подкатегория используется в существующих локациях"})
 			return
 		}
 	}
@@ -556,7 +556,7 @@ func (api *LocationsAPI) handleDeleteChildCategory(w http.ResponseWriter, r *htt
 		})
 		if childIndex < 0 {
 			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, errorResponse{Code: "child_category_not_found", Message: "child category not found"})
+			render.JSON(w, r, errorResponse{Code: "child_category_not_found", Message: "подкатегория не найдена"})
 			return
 		}
 
@@ -572,7 +572,7 @@ func (api *LocationsAPI) handleDeleteChildCategory(w http.ResponseWriter, r *htt
 	}
 
 	render.Status(r, http.StatusNotFound)
-	render.JSON(w, r, errorResponse{Code: "category_not_found", Message: "category not found"})
+	render.JSON(w, r, errorResponse{Code: "category_not_found", Message: "категория не найдена"})
 }
 
 func (api *LocationsAPI) loadLocationsAndConfig() ([]Location, CategoryConfigFile, error) {
@@ -601,7 +601,7 @@ func (api *LocationsAPI) findLocationByHID(hid string) (Location, error) {
 		}
 	}
 
-	return Location{}, errors.New("not found")
+	return Location{}, errors.New("не найдено")
 }
 
 func hasLocationHID(locations []Location, hid string, skipHID string) bool {
@@ -625,33 +625,33 @@ func normalizeAndValidateLocation(location Location, config CategoryConfigFile) 
 	normalized.Type = strings.TrimSpace(location.Type)
 
 	if normalized.Name == "" {
-		fieldErrors["name"] = "name is required"
+		fieldErrors["name"] = "название обязательно"
 	}
 
 	if normalized.Category == "" {
-		fieldErrors["category"] = "category is required"
+		fieldErrors["category"] = "категория обязательна"
 	}
 
 	if normalized.Lat < -90 || normalized.Lat > 90 {
-		fieldErrors["lat"] = "lat must be between -90 and 90"
+		fieldErrors["lat"] = "широта должна быть в диапазоне от -90 до 90"
 	}
 
 	if normalized.Lng < -180 || normalized.Lng > 180 {
-		fieldErrors["lng"] = "lng must be between -180 and 180"
+		fieldErrors["lng"] = "долгота должна быть в диапазоне от -180 до 180"
 	}
 
 	categoryConfig, childConfig, ok := findCategoryConfig(config, normalized.Category, normalized.ChildCategory)
 	if !ok {
-		fieldErrors["category"] = "category is not configured"
+		fieldErrors["category"] = "категория не настроена"
 	}
 
 	if ok {
 		normalized.CategoryDisplay = categoryConfig.Label
 		if normalized.Category == "bonetsky" {
 			if normalized.ChildCategory == "" {
-				fieldErrors["child_category"] = "type is required"
+				fieldErrors["child_category"] = "тип обязателен"
 			} else if childConfig.Key == "" {
-				fieldErrors["child_category"] = "type is not configured"
+				fieldErrors["child_category"] = "тип не настроен"
 			} else {
 				normalized.Type = normalized.ChildCategory
 				normalized.TypeDisplay = childConfig.Label
@@ -660,9 +660,9 @@ func normalizeAndValidateLocation(location Location, config CategoryConfigFile) 
 			}
 		} else {
 			if normalized.ChildCategory == "" {
-				fieldErrors["child_category"] = "child_category is required"
+				fieldErrors["child_category"] = "подкатегория обязательна"
 			} else if childConfig.Key == "" {
-				fieldErrors["child_category"] = "child_category is not configured"
+				fieldErrors["child_category"] = "подкатегория не настроена"
 			} else {
 				normalized.ChildCategory = childConfig.Key
 				normalized.ChildCategoryDisplay = childConfig.Label

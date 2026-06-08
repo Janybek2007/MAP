@@ -7,7 +7,7 @@ import type {
 	LocationItem
 } from './types';
 import { fetchJSON, requestToken, requestTokens } from './api';
-import { createEmptyForm, sortCategories } from './utils';
+import { createEmptyForm, sortCategories, validateLocationForm } from './utils';
 
 export function createManageStore() {
 	let isLoading = $state(true);
@@ -31,6 +31,81 @@ export function createManageStore() {
 		is_partnerships: false
 	});
 	let activeTab = $state<'locations' | 'categories'>('locations');
+	let confirmDialog = $state({
+		open: false,
+		title: '',
+		message: '',
+		confirmLabel: 'Подтвердить',
+		cancelLabel: 'Отмена',
+		tone: 'danger' as 'danger' | 'default'
+	});
+	let confirmAction = $state<null | (() => Promise<void> | void)>(null);
+	let isConfirming = $state(false);
+	let toastId = 0;
+	let toasts = $state<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
+
+	function showToast(
+		message: string,
+		type: 'success' | 'error' | 'info' = 'info',
+		duration = 4200
+	) {
+		const id = ++toastId;
+		toasts = [...toasts, { id, message, type }];
+		if (duration > 0) {
+			window.setTimeout(() => dismissToast(id), duration);
+		}
+	}
+
+	function dismissToast(id: number) {
+		toasts = toasts.filter((toast) => toast.id !== id);
+	}
+
+	function openConfirm(options: {
+		title: string;
+		message: string;
+		confirmLabel?: string;
+		cancelLabel?: string;
+		tone?: 'danger' | 'default';
+		onConfirm: () => Promise<void> | void;
+	}) {
+		confirmDialog = {
+			open: true,
+			title: options.title,
+			message: options.message,
+			confirmLabel: options.confirmLabel ?? 'Подтвердить',
+			cancelLabel: options.cancelLabel ?? 'Отмена',
+			tone: options.tone ?? 'danger'
+		};
+		confirmAction = options.onConfirm;
+	}
+
+	function closeConfirm() {
+		if (isConfirming) return;
+		resetConfirmState();
+	}
+
+	function resetConfirmState() {
+		confirmDialog = {
+			open: false,
+			title: '',
+			message: '',
+			confirmLabel: 'Подтвердить',
+			cancelLabel: 'Отмена',
+			tone: 'danger'
+		};
+		confirmAction = null;
+	}
+
+	async function submitConfirm() {
+		if (!confirmAction || isConfirming) return;
+		isConfirming = true;
+		try {
+			await confirmAction();
+			resetConfirmState();
+		} finally {
+			isConfirming = false;
+		}
+	}
 
 	async function loadData() {
 		isLoading = true;
@@ -52,6 +127,7 @@ export function createManageStore() {
 			categories = sortCategories(confRes.categories ?? []);
 		} catch (err) {
 			loadError = (err as ApiError).message ?? 'Не удалось загрузить данные';
+			showToast(loadError, 'error');
 		} finally {
 			isLoading = false;
 		}
@@ -89,16 +165,16 @@ export function createManageStore() {
 	async function saveLocation() {
 		fieldErrors = {};
 		formError = '';
-		if (!form.lat || !form.lng) {
-			fieldErrors = {
-				lat: 'Сначала выбери точку на карте',
-				lng: 'Сначала выбери точку на карте'
-			};
+		const clientFieldErrors = validateLocationForm(form, categories);
+		if (Object.keys(clientFieldErrors).length > 0) {
+			fieldErrors = clientFieldErrors;
+			showToast('Проверь заполнение формы', 'error');
 			return;
 		}
 		isSaving = true;
 		const method = editingHid ? 'PUT' : 'POST';
 		const url = editingHid ? `/api/locations/${editingHid}` : '/api/locations';
+		const isEditing = Boolean(editingHid);
 		try {
 			const token = await requestToken(url, method);
 			await fetchJSON(url, {
@@ -117,17 +193,18 @@ export function createManageStore() {
 			});
 			await loadData();
 			resetForm();
+			showToast(isEditing ? 'Локация обновлена' : 'Локация создана', 'success');
 		} catch (err) {
 			const e = err as ApiError;
 			fieldErrors = e.fields ?? {};
 			formError = e.message ?? 'Не удалось сохранить локацию';
+			if (formError) showToast(formError, 'error');
 		} finally {
 			isSaving = false;
 		}
 	}
 
 	async function deleteLocation(hid: string) {
-		if (!window.confirm('Удалить эту локацию?')) return;
 		const url = `/api/locations/${hid}`;
 		try {
 			const token = await requestToken(url, 'DELETE');
@@ -138,9 +215,21 @@ export function createManageStore() {
 			if (!res.ok) throw (await res.json().catch(() => null)) ?? { message: `HTTP ${res.status}` };
 			if (editingHid === hid) resetForm();
 			await loadData();
+			showToast('Локация удалена', 'success');
 		} catch (err) {
 			formError = (err as ApiError).message ?? 'Не удалось удалить локацию';
+			if (formError) showToast(formError, 'error');
 		}
+	}
+
+	function confirmDeleteLocation(hid: string) {
+		openConfirm({
+			title: 'Удалить локацию?',
+			message: 'Локация будет удалена из списка. Это действие нельзя отменить.',
+			confirmLabel: 'Удалить',
+			tone: 'danger',
+			onConfirm: () => deleteLocation(hid)
+		});
 	}
 
 	async function createChildCategory() {
@@ -168,10 +257,12 @@ export function createManageStore() {
 			form.child_category = created.key;
 			newChildCategoryLabel = '';
 			isChildPopupOpen = false;
+			showToast('Подкатегория добавлена', 'success');
 		} catch (err) {
 			const e = err as ApiError;
 			fieldErrors = e.fields ?? {};
 			formError = e.message ?? 'Не удалось добавить подкатегорию';
+			if (formError) showToast(formError, 'error');
 		} finally {
 			isCreatingChildCategory = false;
 		}
@@ -262,14 +353,29 @@ export function createManageStore() {
 		set activeTab(v: 'locations' | 'categories') {
 			activeTab = v;
 		},
+		get confirmDialog() {
+			return confirmDialog;
+		},
+		get isConfirming() {
+			return isConfirming;
+		},
+		get toasts() {
+			return toasts;
+		},
 		loadData,
 		resetForm,
 		editLocation,
 		saveLocation,
 		deleteLocation,
+		confirmDeleteLocation,
 		createChildCategory,
 		onCategoryChange,
-		onFilterCategoryChange
+		onFilterCategoryChange,
+		openConfirm,
+		closeConfirm,
+		submitConfirm,
+		showToast,
+		dismissToast
 	};
 }
 

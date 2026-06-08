@@ -53,7 +53,7 @@ func (manager *TokenManager) issue(method string, url string, purpose string) (t
 	cleanMethod := strings.ToUpper(strings.TrimSpace(method))
 	cleanURL := normalizeTokenURL(url)
 	if cleanMethod == "" || cleanURL == "" {
-		return tokenResponse{}, errors.New("url and method are required")
+		return tokenResponse{}, errors.New("адрес и метод обязательны")
 	}
 
 	nonce, err := randomHex(16)
@@ -96,23 +96,23 @@ func (manager *TokenManager) validate(token string, method string, url string, p
 
 	expectedSignature := manager.signature(rawPayload)
 	if !hmac.Equal([]byte(signature), []byte(expectedSignature)) {
-		return errors.New("invalid token signature")
+		return errors.New("неверная подпись токена")
 	}
 
 	if time.Now().Unix() > claims.ExpiresAt {
-		return errors.New("token expired")
+		return errors.New("срок действия токена истёк")
 	}
 
 	if claims.Purpose != purpose {
-		return errors.New("token purpose mismatch")
+		return errors.New("токен не подходит для этого действия")
 	}
 
 	if claims.Method != strings.ToUpper(strings.TrimSpace(method)) {
-		return errors.New("token method mismatch")
+		return errors.New("метод токена не совпадает")
 	}
 
 	if claims.URL != normalizeTokenURL(url) {
-		return errors.New("token url mismatch")
+		return errors.New("адрес токена не совпадает")
 	}
 
 	manager.mu.Lock()
@@ -120,7 +120,7 @@ func (manager *TokenManager) validate(token string, method string, url string, p
 	manager.cleanupLocked()
 
 	if _, exists := manager.used[token]; exists {
-		return errors.New("token already used")
+		return errors.New("токен уже был использован")
 	}
 
 	manager.used[token] = time.Unix(claims.ExpiresAt, 0)
@@ -141,22 +141,22 @@ func (manager *TokenManager) sign(claims tokenClaims) (string, error) {
 func (manager *TokenManager) decode(token string) (tokenClaims, string, string, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 2 {
-		return tokenClaims{}, "", "", errors.New("invalid token format")
+		return tokenClaims{}, "", "", errors.New("неверный формат токена")
 	}
 
 	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return tokenClaims{}, "", "", errors.New("invalid token payload")
+		return tokenClaims{}, "", "", errors.New("неверное содержимое токена")
 	}
 
 	signatureBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return tokenClaims{}, "", "", errors.New("invalid token signature")
+		return tokenClaims{}, "", "", errors.New("неверная подпись токена")
 	}
 
 	var claims tokenClaims
 	if err := json.Unmarshal(payloadBytes, &claims); err != nil {
-		return tokenClaims{}, "", "", errors.New("invalid token claims")
+		return tokenClaims{}, "", "", errors.New("неверные данные токена")
 	}
 
 	return claims, string(signatureBytes), parts[0], nil

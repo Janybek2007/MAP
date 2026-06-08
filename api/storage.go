@@ -17,13 +17,17 @@ import (
 type Storage struct {
 	locationsPath string
 	configPath    string
+	readFile      func(string) ([]byte, error)
+	locationsRaw  []byte
+	configRaw     []byte
 	mu            sync.Mutex
 }
 
-func NewStorage(dataDir string) *Storage {
+func NewStorage(dataDir string, readFile func(string) ([]byte, error)) *Storage {
 	return &Storage{
 		locationsPath: filepath.Join(dataDir, "locations.json"),
 		configPath:    filepath.Join(dataDir, "location_categories.json"),
+		readFile:      readFile,
 	}
 }
 
@@ -31,7 +35,7 @@ func (storage *Storage) LoadLocations() ([]Location, error) {
 	storage.mu.Lock()
 	defer storage.mu.Unlock()
 
-	payload, err := os.ReadFile(storage.locationsPath)
+	payload, err := storage.readLocations()
 	if err != nil {
 		return nil, err
 	}
@@ -64,10 +68,15 @@ func (storage *Storage) SaveLocations(locations []Location) error {
 		return err
 	}
 
+	if err := os.MkdirAll(filepath.Dir(storage.locationsPath), 0o755); err != nil {
+		return err
+	}
+
 	payload, err := json.MarshalIndent(locationsFile{Locations: locations}, "", "\t")
 	if err != nil {
 		return err
 	}
+	storage.locationsRaw = append(storage.locationsRaw[:0], payload...)
 
 	tmpPath := storage.locationsPath + ".tmp"
 	if err := os.WriteFile(tmpPath, payload, 0o644); err != nil {
@@ -81,7 +90,7 @@ func (storage *Storage) LoadCategoryConfig() (CategoryConfigFile, error) {
 	storage.mu.Lock()
 	defer storage.mu.Unlock()
 
-	payload, err := os.ReadFile(storage.configPath)
+	payload, err := storage.readConfig()
 	if err != nil {
 		return CategoryConfigFile{}, err
 	}
@@ -115,10 +124,15 @@ func (storage *Storage) SaveCategoryConfig(config CategoryConfigFile) error {
 		return err
 	}
 
+	if err := os.MkdirAll(filepath.Dir(storage.configPath), 0o755); err != nil {
+		return err
+	}
+
 	payload, err := json.MarshalIndent(config, "", "\t")
 	if err != nil {
 		return err
 	}
+	storage.configRaw = append(storage.configRaw[:0], payload...)
 
 	tmpPath := storage.configPath + ".tmp"
 	if err := os.WriteFile(tmpPath, payload, 0o644); err != nil {
@@ -137,6 +151,38 @@ func backupIfExists(filePath string) error {
 		return err
 	}
 	return os.WriteFile(filePath+".bak", payload, 0o644)
+}
+
+func (storage *Storage) readLocations() ([]byte, error) {
+	if len(storage.locationsRaw) > 0 {
+		return append([]byte(nil), storage.locationsRaw...), nil
+	}
+	if storage.readFile == nil {
+		return os.ReadFile(storage.locationsPath)
+	}
+
+	payload, err := storage.readFile("locations.json")
+	if err != nil {
+		return nil, err
+	}
+	storage.locationsRaw = append(storage.locationsRaw[:0], payload...)
+	return append([]byte(nil), payload...), nil
+}
+
+func (storage *Storage) readConfig() ([]byte, error) {
+	if len(storage.configRaw) > 0 {
+		return append([]byte(nil), storage.configRaw...), nil
+	}
+	if storage.readFile == nil {
+		return os.ReadFile(storage.configPath)
+	}
+
+	payload, err := storage.readFile("location_categories.json")
+	if err != nil {
+		return nil, err
+	}
+	storage.configRaw = append(storage.configRaw[:0], payload...)
+	return append([]byte(nil), payload...), nil
 }
 
 func generateLocationHID(name string) string {

@@ -28,15 +28,15 @@
 			await store.loadData();
 			subEditKey = '';
 			subEditLabel = '';
+			store.showToast('Подкатегория обновлена', 'success');
 		} catch (err) {
-			store.formError = (err as ApiError).message ?? 'Не удалось обновить';
+			store.showToast((err as ApiError).message ?? 'Не удалось обновить', 'error');
 		} finally {
 			subUpdating = false;
 		}
 	}
 
 	async function subDelete(categoryKey: string, childKey: string) {
-		if (!window.confirm('Удалить подкатегорию?')) return;
 		subDeleting = true;
 		const url = `/api/location-config/${categoryKey}/children/${childKey}`;
 		try {
@@ -47,11 +47,22 @@
 			});
 			if (!res.ok) throw (await res.json().catch(() => null)) ?? { message: `HTTP ${res.status}` };
 			await store.loadData();
+			store.showToast('Подкатегория удалена', 'success');
 		} catch (err) {
-			store.formError = (err as ApiError).message ?? 'Не удалось удалить';
+			store.showToast((err as ApiError).message ?? 'Не удалось удалить', 'error');
 		} finally {
 			subDeleting = false;
 		}
+	}
+
+	function confirmSubDelete(categoryKey: string, childKey: string, childLabel: string) {
+		store.openConfirm({
+			title: 'Удалить подкатегорию?',
+			message: `Подкатегория "${childLabel}" будет удалена. Это действие нельзя отменить.`,
+			confirmLabel: 'Удалить',
+			tone: 'danger',
+			onConfirm: () => subDelete(categoryKey, childKey)
+		});
 	}
 
 	async function subCreate(categoryKey: string) {
@@ -69,8 +80,9 @@
 			await store.loadData();
 			subNewLabel = '';
 			subAddCategory = '';
+			store.showToast('Подкатегория добавлена', 'success');
 		} catch (err) {
-			store.formError = (err as ApiError).message ?? 'Не удалось добавить';
+			store.showToast((err as ApiError).message ?? 'Не удалось добавить', 'error');
 		} finally {
 			subAdding = false;
 		}
@@ -137,7 +149,8 @@
 											class="danger-btn"
 											type="button"
 											disabled={subDeleting}
-											onclick={() => subDelete(category.key, child.key)}>Удалить</button
+											onclick={() => confirmSubDelete(category.key, child.key, child.label)}
+											>Удалить</button
 										>
 									</div>
 								{/if}

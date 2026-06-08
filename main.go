@@ -31,6 +31,7 @@ const (
 
 var runMode = "prod"
 var currentServer *http.Server
+var buildAPIKey string
 
 func main() {
 	mode := "prod"
@@ -58,7 +59,7 @@ func main() {
 
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/shutdown", shutdownHandler)
-	apiKey := strings.TrimSpace(os.Getenv("API_KEY"))
+	apiKey := resolveAPIKey()
 	if apiKey == "" {
 		log.Fatal("API_KEY is required")
 	}
@@ -326,6 +327,15 @@ func loadEnvFiles(mode string) {
 		return
 	}
 	_ = godotenv.Overload(".env.production")
+}
+
+func resolveAPIKey() string {
+	envAPIKey := strings.TrimSpace(os.Getenv("API_KEY"))
+	if envAPIKey != "" {
+		return envAPIKey
+	}
+
+	return strings.TrimSpace(buildAPIKey)
 }
 
 func listenOrFind(startPort int, allowReuse bool) (net.Listener, int, bool, error) {

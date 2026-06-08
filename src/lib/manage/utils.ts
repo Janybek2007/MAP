@@ -20,6 +20,63 @@ export function sortCategories(input: CategoryConfig[]): CategoryConfig[] {
 	});
 }
 
+export function validateLocationForm(
+	form: FormState,
+	categories: CategoryConfig[]
+): Record<string, string> {
+	const errors: Record<string, string> = {};
+	const name = form.name.trim();
+	const category = form.category.trim();
+	const childCategory = form.child_category.trim();
+	const lat = Number(form.lat);
+	const lng = Number(form.lng);
+
+	if (!name) {
+		errors.name = 'Название обязательно';
+	}
+
+	if (!category) {
+		errors.category = 'Категория обязательна';
+	}
+
+	if (!childCategory) {
+		errors.child_category = category === 'bonetsky' ? 'Тип обязателен' : 'Подкатегория обязательна';
+	}
+
+	if (!form.lat || !form.lng) {
+		errors.lat = 'Сначала выбери точку на карте';
+		errors.lng = 'Сначала выбери точку на карте';
+		return errors;
+	}
+
+	if (!Number.isFinite(lat)) {
+		errors.lat = 'Широта должна быть числом';
+	} else if (lat < -90 || lat > 90) {
+		errors.lat = 'Широта должна быть в диапазоне от -90 до 90';
+	}
+
+	if (!Number.isFinite(lng)) {
+		errors.lng = 'Долгота должна быть числом';
+	} else if (lng < -180 || lng > 180) {
+		errors.lng = 'Долгота должна быть в диапазоне от -180 до 180';
+	}
+
+	if (category) {
+		const categoryItem = categories.find((item) => item.key === category);
+		if (!categoryItem) {
+			errors.category = 'Категория не найдена';
+		} else if (childCategory) {
+			const hasChild = categoryItem.children.some((item) => item.key === childCategory);
+			if (!hasChild) {
+				errors.child_category =
+					category === 'bonetsky' ? 'Выбери существующий тип' : 'Выбери существующую подкатегорию';
+			}
+		}
+	}
+
+	return errors;
+}
+
 export function childLabel(location: LocationItem): string {
 	if (location.category === 'bonetsky') {
 		return location.type_display || location.type || '';

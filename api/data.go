@@ -66,7 +66,7 @@ func (api *LocationsAPI) serveDataFileStripped(w http.ResponseWriter, r *http.Re
 	var items []map[string]any
 	if err := json.Unmarshal(raw, &items); err != nil {
 		render.Status(r, http.StatusInternalServerError)
-		render.JSON(w, r, errorResponse{Code: "data_parse_failed", Message: "invalid json in data file"})
+		render.JSON(w, r, errorResponse{Code: "data_parse_failed", Message: "неверный формат данных в файле"})
 		return
 	}
 
@@ -84,27 +84,27 @@ func (api *LocationsAPI) handleDataCoords(w http.ResponseWriter, r *http.Request
 	fileName := collection + ".json"
 	if fileName != "districts.json" && fileName != "cities.json" && fileName != "regions.json" {
 		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, errorResponse{Code: "not_found", Message: "not found"})
+		render.JSON(w, r, errorResponse{Code: "not_found", Message: "ничего не найдено"})
 		return
 	}
 
 	if hid == "" {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, errorResponse{Code: "invalid_hid", Message: "hid is required"})
+		render.JSON(w, r, errorResponse{Code: "invalid_hid", Message: "идентификатор обязателен"})
 		return
 	}
 
 	raw, err := api.readFile(fileName)
 	if err != nil {
 		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, errorResponse{Code: "not_found", Message: "not found"})
+		render.JSON(w, r, errorResponse{Code: "not_found", Message: "ничего не найдено"})
 		return
 	}
 
 	var items []map[string]any
 	if err := json.Unmarshal(raw, &items); err != nil {
 		render.Status(r, http.StatusInternalServerError)
-		render.JSON(w, r, errorResponse{Code: "data_parse_failed", Message: "invalid json in data file"})
+		render.JSON(w, r, errorResponse{Code: "data_parse_failed", Message: "неверный формат данных в файле"})
 		return
 	}
 
@@ -120,5 +120,5 @@ func (api *LocationsAPI) handleDataCoords(w http.ResponseWriter, r *http.Request
 	}
 
 	render.Status(r, http.StatusNotFound)
-	render.JSON(w, r, errorResponse{Code: "not_found", Message: "not found"})
+	render.JSON(w, r, errorResponse{Code: "not_found", Message: "ничего не найдено"})
 }
